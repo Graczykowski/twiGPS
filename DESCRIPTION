@@ -1,0 +1,24 @@
+Package: twsagps
+Title: TWSA in GPS health data
+Version: 0.0.0.9100
+Authors@R: 
+    person("Igor", "Graczykowski", , "igor.graczykowski@gmail.com", role = c("aut", "cre"),
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: TWSA methods (Point Overlay, Kernel Density Estimation, Density Ranking, Line Segment) in GPS health data.
+License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
+    license
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1
+Imports:
+  terra,
+  SpatialKDE,
+  sf,
+  dplyr,
+  geosphere,
+  TDA,
+  RANN,
+  BBmisc,
+  tidyr,
+  tidyterra,
+  stats
