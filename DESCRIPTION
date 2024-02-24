@@ -22,3 +22,5 @@ Imports:
   tidyr,
   tidyterra,
   stats
+URL: https://github.com/Graczykowski/twsagps
+BugReports: https://github.com/Graczykowski/twsagps/issues
