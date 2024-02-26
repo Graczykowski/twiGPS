@@ -51,7 +51,7 @@ KDE_wgs = function(x, day=NULL, cellsize=100, smoothing = 0.0007, env_data=NULL,
   # mean cellsize lon and lat
 
 
-  n_res0 = as.integer(mean_xy_dist) # cell number
+  n_res0 = as.integer(mean_lonlat_dist) # cell number
 
   # creating grid for KDE
   lon_seq = seq(from=lon_range[1], to=lon_range[2], length.out=n_res0)

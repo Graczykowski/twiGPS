@@ -56,7 +56,7 @@ DR_exposure = function(x, day=NULL, cellsize=100, smoothing = 0.0007, env_data=N
   # mean cellsize lon and lat
 
 
-  n_res0 = as.integer(mean_xy_dist) # cell number
+  n_res0 = as.integer(mean_lonlat_dist) # cell number
 
   # calculate DR data
   DR_data = DR(data=coords, kernel= "Gaussian", h=smoothing, n_res=n_res0,
