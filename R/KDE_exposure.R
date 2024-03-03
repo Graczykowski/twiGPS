@@ -52,9 +52,12 @@ KDE_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NUL
   spat_kde_rast = terra::rast(spat_kde_rast)
 
   if (!is.null(env_data)){ # calculate exposure
+    env_data_proj = terra::project(env_data, spat_kde_rast)
+    env_data_resamp = terra::resample(env_data_proj, spat_kde_rast)
+    rast_env_kde = spat_kde_rast * env_data_resamp
 
-    env_data = terra::resample(env_data, spat_kde_rast)
-    rast_env_kde = spat_kde_rast * env_data
+
+
 
     # calculate env output
     output = output_calc(act_rast = spat_kde_rast, env_rast = rast_env_kde, stats = stats)

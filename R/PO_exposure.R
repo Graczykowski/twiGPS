@@ -49,9 +49,9 @@ PO_exposure = function(x, day=NULL, cellsize=100, env_data=NULL,
 
 
   if (!is.null(env_data)){ # calculate exposure
-
-    env_data = terra::resample(env_data, rast_points)
-    rast_env_points = rast_points * env_data
+    env_data_proj = terra::project(env_data, rast_points)
+    env_data_resamp = terra::resample(env_data_proj, rast_points)
+    rast_env_points = rast_points * env_data_resamp
 
 
     # calculate env output
