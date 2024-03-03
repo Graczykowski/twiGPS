@@ -77,7 +77,7 @@ DR_exposure = function(x, day=NULL, cellsize=100, smoothing = 0.0007,
                        ymin=lat_min, ymax=lat_max)
 
   # insert KDE values to raster
-  if (normalize = TRUE){
+  if (normalize == TRUE){
     dr_values = BBmisc::normalize(DR_data$gr_alpha, method = "range", range = c(0, 1),
                                    margin = 1L, on.constant = "quiet")
   } else {
