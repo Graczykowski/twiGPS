@@ -47,9 +47,9 @@ DR_exposure = function(x, day=NULL, cellsize=100, smoothing = 0.0007, env_data=N
   lat_range = c(min(coords[[2]] - lat_range_const), max(coords[[2]]) + lat_range_const)
 
   # range distance in WGS84
-  dist_lon = distm(c(lon_range[1], lat_range[1]), c(lon_range[2], lat_range[1]),
+  dist_lon = geosphere::distm(c(lon_range[1], lat_range[1]), c(lon_range[2], lat_range[1]),
                    fun = geosphere::distHaversine)
-  dist_lat = distm(c(lon_range[1], lat_range[1]), c(lon_range[1], lat_range[2]),
+  dist_lat = geosphere::distm(c(lon_range[1], lat_range[1]), c(lon_range[1], lat_range[2]),
                    fun = geosphere::distHaversine)
 
   mean_lonlat_dist = ((dist_lon / cellsize) + (dist_lat / cellsize)) / 2
