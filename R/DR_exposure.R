@@ -20,7 +20,8 @@
 #' @export
 
 
-DR_exposure = function(x, day=NULL, cellsize=100, smoothing = 0.0007, env_data=NULL,
+DR_exposure = function(x, day=NULL, cellsize=100, smoothing = 0.0007,
+                       normalize = TRUE, env_data=NULL,
                        data_extent = NULL, # TODO extent
                        stats=NULL, act_and_env=FALSE){ # TODO act_and_env
 
@@ -76,9 +77,12 @@ DR_exposure = function(x, day=NULL, cellsize=100, smoothing = 0.0007, env_data=N
                        ymin=lat_min, ymax=lat_max)
 
   # insert KDE values to raster
-  dr_values = BBmisc::normalize(DR_data$gr_alpha, method = "range", range = c(0, 1),
+  if (normalize = TRUE){
+    dr_values = BBmisc::normalize(DR_data$gr_alpha, method = "range", range = c(0, 1),
                                    margin = 1L, on.constant = "quiet")
-
+  } else {
+    dr_values = DR_data$gr_alpha
+  }
   terra::values(spat_dr_rast) = dr_values
   spat_dr_rast[spat_dr_rast == 0] = NA # NA vals
   spat_dr_rast = terra::flip(spat_dr_rast, direction='vertical') # flip raster
