@@ -35,29 +35,29 @@ KDE_wgs = function(x, day=NULL, cellsize=100, smoothing = 0.0007, env_data=NULL,
 
 
   # additional buffer
-  lon_range_const = (max(coords[[1]]) - min(coords[[1]])) * buff_const
-  lat_range_const = (max(coords[[2]]) - min(coords[[2]])) * buff_const
+  x_range_const = (max(coords[[1]]) - min(coords[[1]])) * buff_const
+  y_range_const = (max(coords[[2]]) - min(coords[[2]])) * buff_const
 
   # extent of data with buffer
-  lon_range = c(min(coords[[1]] - lon_range_const ), max(coords[[1]]) + lon_range_const)
-  lat_range = c(min(coords[[2]] - lat_range_const), max(coords[[2]]) + lat_range_const)
+  x_range = c(min(coords[[1]] - x_range_const ), max(coords[[1]]) + x_range_const)
+  y_range = c(min(coords[[2]] - y_range_const), max(coords[[2]]) + y_range_const)
 
   # range distance in WGS84
-  dist_lon = distm(c(lon_range[1], lat_range[1]), c(lon_range[2], lat_range[1]),
+  dist_x = distm(c(x_range[1], y_range[1]), c(x_range[2], y_range[1]),
                  fun = geosphere::distHaversine)
-  dist_lat = distm(c(lon_range[1], lat_range[1]), c(lon_range[1], lat_range[2]),
+  dist_y = distm(c(x_range[1], y_range[1]), c(x_range[1], y_range[2]),
                  fun = geosphere::distHaversine)
 
-  mean_lonlat_dist = ((dist_lon / cellsize) + (dist_lat / cellsize)) / 2
-  # mean cellsize lon and lat
+  mean_xy_dist = ((dist_x / cellsize) + (dist_y / cellsize)) / 2
+  # mean cellsize x and y
 
 
-  n_res0 = as.integer(mean_lonlat_dist) # cell number
+  n_res0 = as.integer(mean_xy_dist) # cell number
 
   # creating grid for KDE
-  lon_seq = seq(from=lon_range[1], to=lon_range[2], length.out=n_res0)
-  lat_seq = seq(from=lat_range[1], to=lat_range[2], length.out=n_res0)
-  gr1 = expand.grid(lon_seq,lat_seq)
+  x_seq = seq(from=x_range[1], to=x_range[2], length.out=n_res0)
+  y_seq = seq(from=y_range[1], to=y_range[2], length.out=n_res0)
+  gr1 = expand.grid(x_seq,y_seq)
   names(gr1) = c("x", "y")
 
 
@@ -65,16 +65,16 @@ KDE_wgs = function(x, day=NULL, cellsize=100, smoothing = 0.0007, env_data=NULL,
   kde_vals = TDA::kde(X = coords, Grid = gr1, h = smoothing)
 
   # creating empty raster to insert KDE values
-  len_lon = length(lon_seq)
-  len_lat = length(lat_seq)
+  len_x = length(x_seq)
+  len_y = length(y_seq)
 
-  lon_min = min(lon_seq)
-  lon_max = max(lon_seq)
-  lat_min = min(lat_seq)
-  lat_max = max(lat_seq)
+  x_min = min(x_seq)
+  x_max = max(x_seq)
+  y_min = min(y_seq)
+  y_max = max(y_seq)
 
-  kde_wgs_rast = rast(nrows=len_lat, ncols=len_lon, xmin=lon_min, xmax=lon_max,
-                       ymin=lat_min, ymax=lat_max)
+  kde_wgs_rast = rast(nrows=len_y, ncols=len_x, xmin=x_min, xmax=x_max,
+                       ymin=y_min, ymax=y_max)
 
   # insert KDE values to raster
   terra::values(kde_wgs_rast) = kde_vals

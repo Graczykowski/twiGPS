@@ -54,7 +54,7 @@ PO_exposure = function(x, day=NULL, cellsize=100, env_data=NULL, normalize = FAL
     rast_minmax = minmax(rast_points) # minmax
     # calculate normalization to 0-1 range
     rast_points = (rast_points - rast_minmax[1,])/(rast_minmax[2,]-rast_minmax[1,])
-    rast_points[rast_points == 0] = NA # insert NA
+    rast_points = terra::subst(rast_points, from = 0, to = NA) # insert NA
 
   }
 
