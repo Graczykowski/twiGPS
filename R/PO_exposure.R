@@ -19,7 +19,7 @@
 #' @export
 
 
-PO_exposure = function(x, day=NULL, cellsize=100, env_data=NULL,
+PO_exposure = function(x, day=NULL, cellsize=100, env_data=NULL, normalize = FALSE,
                        data_extent = NULL, # TODO extent
                        start_crs = "WGS84", end_crs=NULL, stats=NULL,
                        act_and_env=FALSE){ # TODO act_and_env
@@ -45,7 +45,18 @@ PO_exposure = function(x, day=NULL, cellsize=100, env_data=NULL,
 
     rast_points = terra::rasterize(x_proj, env_data, field = "rast", fun = sum)
     terra::ext(rast_points) = terra::ext(x_proj)
+
   }
+  if (normalize == TRUE){
+
+    rast_points = terra::subst(rast_points, from = NA, to = 0) # proper range for normalization
+    rast_minmax = minmax(rast_points) # minmax
+    # calculate normalization to 0-1 range
+    rast_points = (rast_points - rast_minmax[1,])/(rast_minmax[2,]-rast_minmax[1,])
+    rast_points[rast_points == 0] = NA # insert NA
+
+  }
+
 
 
   if (!is.null(env_data)){ # calculate exposure

@@ -24,7 +24,7 @@
 
 
 KDE_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
-                        data_extent = NULL, # TODO extent
+                        normalize = FALSE, data_extent = NULL, # TODO extent
                         start_crs = "WGS84", end_crs=NULL, stats=NULL,
                         act_and_env=FALSE){ # TODO act_and_env
 
@@ -45,7 +45,18 @@ KDE_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NUL
 
 
   spat_kde_rast = SpatialKDE::kde(sf::st_as_sf(x_proj), band_width = bandwidth,
-                                  grid = raster(grid_rast)) #cant use terra rast
+                                  grid = raster::raster(grid_rast)) #cant use terra rast
+  if (normalize == TRUE){
+
+    spat_kde_rast = subst(spat_kde_rast, from = NA, to = 0) # proper range for normalization
+    rast_minmax = minmax(spat_kde_rast) # minmax
+    # calculate normalization to 0-1 range
+    spat_kde_rast = (spat_kde_rast - rast_minmax[1,])/(rast_minmax[2,]-rast_minmax[1,])
+    spat_kde_rast = subst(spat_kde_rast, from = 0, to = NA) # insert NA
+
+  }
+
+
   spat_kde_rast[spat_kde_rast == 0] = NA
 
 

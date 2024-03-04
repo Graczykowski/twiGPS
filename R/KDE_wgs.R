@@ -16,7 +16,7 @@
 #'
 #' @export
 KDE_wgs = function(x, day=NULL, cellsize=100, smoothing = 0.0007, env_data=NULL,
-                   data_extent = NULL, # TODO extent
+                   normalize = FALSE, data_extent = NULL, # TODO extent
                    stats=NULL, act_and_env=FALSE){ # TODO act_and_env
 
   buff_const = 0.05 #percent of extent as bbox
