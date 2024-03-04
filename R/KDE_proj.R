@@ -98,6 +98,7 @@ KDE_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
   # insert kde values to raster
   terra::values(kde_rast) = kde_vals
   kde_rast = terra::subst(kde_rast, from = 0, to = NA)
+  kde_rast = terra::flip(kde_rast, direction='vertical') # flip raster
 
 
 
