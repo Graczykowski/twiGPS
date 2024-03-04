@@ -7,6 +7,7 @@
 #' @param cellsize size of raster cell in meters
 #' @param smoothing smoothing parameter
 #' @param env_data SparRaster object of envirinmental data
+#' @param normalize argument if activity data should be normalized to 0-1 values range
 #' @param data_extent TODO
 #' @param stats statistics calculated
 #' @param act_and_env TODO

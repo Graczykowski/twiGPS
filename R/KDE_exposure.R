@@ -9,6 +9,7 @@
 #' @param cellsize size of raster cell in meters
 #' @param bandwidth bandwidth in meters
 #' @param env_data SparRaster object of envirinmental data
+#' @param normalize argument if activity data should be normalized to 0-1 values range
 #' @param data_extent TODO
 #' @param start_crs coordinate system of coordinates in x data frame
 #' @param end_crs coordinate system of output
