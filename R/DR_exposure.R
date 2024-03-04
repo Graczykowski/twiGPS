@@ -74,7 +74,7 @@ DR_exposure = function(x, day=NULL, cellsize=100, smoothing = 0.0007,
   lat_min = min(DR_data$y_grid)
   lat_max = max(DR_data$y_grid)
 
-  spat_dr_rast = rast(nrows=len_lat, ncols=len_lon, xmin=lon_min, xmax=lon_max,
+  spat_dr_rast = terra::rast(nrows=len_lat, ncols=len_lon, xmin=lon_min, xmax=lon_max,
                        ymin=lat_min, ymax=lat_max)
 
   # insert KDE values to raster

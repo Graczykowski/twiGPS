@@ -73,7 +73,7 @@ KDE_wgs = function(x, day=NULL, cellsize=100, smoothing = 0.0007, env_data=NULL,
   y_min = min(y_seq)
   y_max = max(y_seq)
 
-  kde_wgs_rast = rast(nrows=len_y, ncols=len_x, xmin=x_min, xmax=x_max,
+  kde_wgs_rast = terra::rast(nrows=len_y, ncols=len_x, xmin=x_min, xmax=x_max,
                        ymin=y_min, ymax=y_max)
 
   # insert KDE values to raster

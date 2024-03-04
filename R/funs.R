@@ -20,9 +20,9 @@ start_processing = function(x, day=NULL, env_data = NULL, data_extent = NULL,
 
   # crs
   if (!is.null(end_crs)){
-    x_proj = terra::project(x_points, crs(end_crs))
+    x_proj = terra::project(x_points, terra::crs(end_crs))
   } else if (!is.null(env_data)) {
-    x_proj = terra::project(x_points, crs(env_data))
+    x_proj = terra::project(x_points, terra::crs(env_data))
   } else {
     x_proj = x_points
   }
@@ -86,7 +86,7 @@ trajectories_fun = function(data){
     #filter to the study id defined by the argument
     #define start and end points of line
     dplyr::mutate(
-      line_id = row_number(),#an id for each "line segment"
+      line_id = dplyr::row_number(),#an id for each "line segment"
       x_start= sf::st_coordinates(geometry)[,1],
       y_start= sf::st_coordinates(geometry)[,2],
       x_end = dplyr::lead(x_start),
@@ -105,13 +105,13 @@ trajectories_fun = function(data){
       names_sep = "_"#the separator for the column name
     ) %>%
     # create sf object once again
-    sf::st_as_sf(coords = c("x", "y"), crs=st_crs(data)) %>%
+    sf::st_as_sf(coords = c("x", "y"), crs= sf::st_crs(data)) %>%
     dplyr::group_by(line_id) %>%
     #see Edzer's answer here:https://github.com/r-spatial/sf/issues/851
     #do_union=FALSE is needed.
     dplyr::summarize(do_union = FALSE) %>%
     sf::st_cast("LINESTRING") %>% # cast linestring type
     sf::st_as_sf() %>%
-    ungroup()
+    dplyr::ungroup()
   return(trajectories_out)
 }

@@ -10,6 +10,7 @@ KDE_wgs(
   cellsize = 100,
   smoothing = 7e-04,
   env_data = NULL,
+  normalize = FALSE,
   data_extent = NULL,
   stats = NULL,
   act_and_env = FALSE
@@ -25,6 +26,8 @@ KDE_wgs(
 \item{smoothing}{smoothing parameter}
 
 \item{env_data}{SparRaster object of envirinmental data}
+
+\item{normalize}{argument if activity data should be normalized to 0-1 values range}
 
 \item{data_extent}{TODO}
 

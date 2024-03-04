@@ -26,7 +26,7 @@ LS_exposure = function(x, day=NULL, time_data = NULL, cellsize=100, buff_dist = 
                        act_and_env=FALSE){ # TODO act_and_env
 
   # processing dplyr argument
-  time_data_null = enquo(time_data)
+  time_data_null = dplyr::enquo(time_data)
 
   # get spatial data with correct crs
   x_proj = start_processing(x, day, env_data, data_extent, start_crs, end_crs)
@@ -68,8 +68,8 @@ LS_exposure = function(x, day=NULL, time_data = NULL, cellsize=100, buff_dist = 
       na.rm=TRUE,
       weights = TRUE
     ) %>%
-    as_tibble() %>%
-    rename(
+    dplyr::as_tibble() %>%
+    dplyr::rename(
       line_id = ID,#rename this to line id
       e=2#second column is the exposure.
     )
@@ -86,15 +86,15 @@ LS_exposure = function(x, day=NULL, time_data = NULL, cellsize=100, buff_dist = 
         na.rm=T),
       #These weights are based on the areal overlap, not time
       sum_weights = sum(weight,na.rm=T),
-      n_pixel = n() # number of observations corresponds to number of pixels per line segment
+      n_pixel = dplyr::n() # number of observations corresponds to number of pixels per line segment
     ) %>%
-    ungroup()
+    dplyr::ungroup()
 
   if (!(rlang::quo_is_null(time_data_null))){
 
     duration_line_id = x %>%
       dplyr::mutate(time_elapsed = as.integer(dplyr::lead({{time_data}}) - {{time_data}}),
-                    line_id = row_number()) %>%
+                    line_id = dplyr::row_number()) %>%
       dplyr::select(line_id, time_elapsed)
 
     traj_extract_line_id = traj_extract_line_id %>%

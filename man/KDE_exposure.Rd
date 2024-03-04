@@ -10,6 +10,7 @@ KDE_exposure(
   cellsize = 100,
   bandwidth = 200,
   env_data = NULL,
+  normalize = FALSE,
   data_extent = NULL,
   start_crs = "WGS84",
   end_crs = NULL,
@@ -27,6 +28,8 @@ KDE_exposure(
 \item{bandwidth}{bandwidth in meters}
 
 \item{env_data}{SparRaster object of envirinmental data}
+
+\item{normalize}{argument if activity data should be normalized to 0-1 values range}
 
 \item{data_extent}{TODO}
 

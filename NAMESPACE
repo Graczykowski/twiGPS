@@ -2,6 +2,7 @@
 
 export(DR_exposure)
 export(KDE_exposure)
+export(KDE_proj)
 export(KDE_wgs)
 export(LS_exposure)
 export(PO_exposure)

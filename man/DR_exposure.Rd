@@ -9,6 +9,7 @@ DR_exposure(
   day = NULL,
   cellsize = 100,
   smoothing = 7e-04,
+  normalize = TRUE,
   env_data = NULL,
   data_extent = NULL,
   stats = NULL,
@@ -23,6 +24,8 @@ DR_exposure(
 \item{cellsize}{size of raster cell in meters}
 
 \item{smoothing}{smoothing parameter}
+
+\item{normalize}{argument if activity data should be normalized to 0-1 values range}
 
 \item{env_data}{SparRaster object of envirinmental data}
 

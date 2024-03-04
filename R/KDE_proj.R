@@ -39,12 +39,12 @@ KDE_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
   extent = terra::ext(x_proj)
 
   # buffer around extent
-  x_const_kde = (xmax(extent) - xmin(extent)) * buff_const
-  y_const_kde = (ymax(extent) - ymin(extent)) * buff_const
+  x_const_kde = (terra::xmax(extent) - terra::xmin(extent)) * buff_const
+  y_const_kde = (terra::ymax(extent) - terra::ymin(extent)) * buff_const
 
   # new extent
-  new_extent = c(xmin(extent) - x_const_kde, xmax(extent) + x_const_kde,
-                 ymin(extent) - y_const_kde, ymax(extent) + y_const_kde)
+  new_extent = c(terra::xmin(extent) - x_const_kde, terra::xmax(extent) + x_const_kde,
+                 terra::ymin(extent) - y_const_kde, terra::ymax(extent) + y_const_kde)
 
 
 
@@ -57,7 +57,7 @@ KDE_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
 
     grid_rast = env_data
     terra::ext(grid_rast) = new_extent # ext before cellsize to avoid cellsize disproportion
-    terra::res(grid_rast) = res(env_data)
+    terra::res(grid_rast) = terra::res(env_data)
   }
 
   # coordinate seq
@@ -84,8 +84,8 @@ KDE_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
   y_max = max(y_seq)
 
   # empty rast for kde
-  kde_rast = rast(nrows=len_y, ncols=len_x, xmin=x_min, xmax=x_max, ymin=y_min,
-                  ymax=y_max, crs = crs(x_proj))
+  kde_rast = terra::rast(nrows=len_y, ncols=len_x, xmin=x_min, xmax=x_max, ymin=y_min,
+                  ymax=y_max, crs = terra::crs(x_proj))
 
 
   if (normalize == TRUE){ # normalize kde values

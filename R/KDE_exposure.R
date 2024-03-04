@@ -49,11 +49,11 @@ KDE_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NUL
                                   grid = raster::raster(grid_rast)) #cant use terra rast
   if (normalize == TRUE){
 
-    spat_kde_rast = subst(spat_kde_rast, from = NA, to = 0) # proper range for normalization
-    rast_minmax = minmax(spat_kde_rast) # minmax
+    spat_kde_rast = terra::subst(spat_kde_rast, from = NA, to = 0) # proper range for normalization
+    rast_minmax = terra::minmax(spat_kde_rast) # minmax
     # calculate normalization to 0-1 range
     spat_kde_rast = (spat_kde_rast - rast_minmax[1,])/(rast_minmax[2,]-rast_minmax[1,])
-    spat_kde_rast = subst(spat_kde_rast, from = 0, to = NA) # insert NA
+    spat_kde_rast = terra::subst(spat_kde_rast, from = 0, to = NA) # insert NA
 
   }
 
