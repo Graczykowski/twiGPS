@@ -41,8 +41,8 @@ rast_stats = function(raster, stats){
       range = terra::global(raster, fun = statistic, na.rm = TRUE)
       vals = append(vals, range[,2] - range[,1])
     } else if (statistic == "freq"){
-      freq = raster |> terra::freq() |> dplyr::summarise(n = sum(count))
-        |> as.integer()
+      freq = raster |> terra::freq() |> dplyr::summarise(n = sum(count)) |>
+        as.integer()
       vals = append(vals, freq)
     } else if (statistic == "area") {
       area = raster |> terra::expanse() |> dplyr::select(area) |> as.integer()
