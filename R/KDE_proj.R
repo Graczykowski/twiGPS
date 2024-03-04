@@ -61,8 +61,8 @@ KDE_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
   }
 
   # coordinate seq
-  x_seq = seq(new_extent[1], new_extent[2], length.out = terra::dim(grid_rast)[2])
-  y_seq = seq(new_extent[3], new_extent[4], length.out = terra::dim(grid_rast)[1])
+  x_seq = seq(new_extent[1], new_extent[2], length.out = terra::ncol(grid_rast))
+  y_seq = seq(new_extent[3], new_extent[4], length.out = terra::nrow(grid_rast))
 
   # coords of every cell
   expand_grid = expand.grid(x_seq,y_seq)
