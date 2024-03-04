@@ -26,7 +26,7 @@
 
 
 
-KDE_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
+DR_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
                     normalize = FALSE, data_extent = NULL, # TODO extent
                     start_crs = "WGS84", end_crs=NULL, stats=NULL,
                     act_and_env=FALSE){ # TODO act_and_env
@@ -40,12 +40,12 @@ KDE_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
   extent = terra::ext(x_proj)
 
   # buffer around extent
-  x_const_kde = (terra::xmax(extent) - terra::xmin(extent)) * buff_const
-  y_const_kde = (terra::ymax(extent) - terra::ymin(extent)) * buff_const
+  x_const_dr = (terra::xmax(extent) - terra::xmin(extent)) * buff_const
+  y_const_dr = (terra::ymax(extent) - terra::ymin(extent)) * buff_const
 
   # new extent
-  new_extent = c(terra::xmin(extent) - x_const_kde, terra::xmax(extent) + x_const_kde,
-                 terra::ymin(extent) - y_const_kde, terra::ymax(extent) + y_const_kde)
+  new_extent = c(terra::xmin(extent) - x_const_dr, terra::xmax(extent) + x_const_dr,
+                 terra::ymin(extent) - y_const_dr, terra::ymax(extent) + y_const_dr)
 
 
 
@@ -61,6 +61,8 @@ KDE_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
     terra::res(grid_rast) = terra::res(env_data)
   }
 
+
+
   # coordinate seq
   x_seq = seq(new_extent[1], new_extent[2], length.out = terra::ncol(grid_rast))
   y_seq = seq(new_extent[3], new_extent[4], length.out = terra::nrow(grid_rast))
@@ -71,49 +73,58 @@ KDE_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
   # point coords
   coords = terra::geom(x_proj)[,3:4]
 
-  # kde with sqrt bandwidth
-  kde_data = TDA::kde(coords, Grid = expand_grid, h = sqrt(bandwidth))
+  # number of cells
+  x_cells = terra::ncol(grid_rast)
+  y_cells = terra::nrows(grid_rast)
+
+  # dr with sqrt bandwidth
+  dr_data = DR_simple(coords, kernel= "Gaussian", h = sqrt(bandwidth),
+                      x_res=x_cells, y_res=y_cells, xlim=new_extent[1:2],
+                      ylim=new_extent[3:4])
+
+
+
 
   # params for empty raster
-  len_x <- length(x_seq)
-  len_y <- length(y_seq)
+  len_x <- length(dr_data$x_grid)
+  len_y <- length(dr_data$y_grid)
 
   # x, y limits
-  x_min = min(x_seq)
-  x_max = max(x_seq)
-  y_min = min(y_seq)
-  y_max = max(y_seq)
+  x_min = min(dr_data$x_grid)
+  x_max = max(dr_data$x_grid)
+  y_min = min(dr_data$y_grid)
+  y_max = max(dr_data$y_grid)
 
-  # empty rast for kde
-  kde_rast = terra::rast(nrows=len_y, ncols=len_x, xmin=x_min, xmax=x_max, ymin=y_min,
+  # empty rast for dr
+  dr_rast = terra::rast(nrows=len_y, ncols=len_x, xmin=x_min, xmax=x_max, ymin=y_min,
                          ymax=y_max, crs = terra::crs(x_proj))
 
 
-  if (normalize == TRUE){ # normalize kde values
-    kde_vals = BBmisc::normalize(as.vector(kde_data), method = "range", range = c(0, 1),
+  if (normalize == TRUE){ # normalize dr values
+    dr_vals = BBmisc::normalize(as.vector(dr_data$gr_alpha), method = "range", range = c(0, 1),
                                  margin = 1L, on.constant = "quiet")
   } else {
-    kde_vals = kde_data
+    dr_vals = dr_data$gr_alpha
   }
 
-  # insert kde values to raster
-  terra::values(kde_rast) = kde_vals
-  kde_rast = terra::subst(kde_rast, from = 0, to = NA)
-  kde_rast = terra::flip(kde_rast, direction='vertical') # flip raster
+  # insert dr values to raster
+  terra::values(dr_rast) = dr_vals
+  dr_rast = terra::subst(dr_rast, from = 0, to = NA)
+  dr_rast = terra::flip(dr_rast, direction='vertical') # flip raster
 
 
 
   if (!is.null(env_data)){ # calculate exposure
-    env_data_proj = terra::project(env_data, kde_rast)
-    env_data_resamp = terra::resample(env_data_proj, kde_rast)
-    kde_env_rast = kde_rast * env_data_resamp
+    env_data_proj = terra::project(env_data, dr_rast)
+    env_data_resamp = terra::resample(env_data_proj, dr_rast)
+    dr_env_rast = dr_rast * env_data_resamp
 
 
     # calculate env output
-    output = output_calc(kde_rast, env_rast = kde_env_rast, stats = stats)
+    output = output_calc(dr_rast, env_rast = dr_env_rast, stats = stats)
   } else {
     # calculate activity output
-    output = output_calc(kde_rast, stats = stats)
+    output = output_calc(dr_rast, stats = stats)
   }
 
   return(output)
