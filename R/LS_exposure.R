@@ -16,7 +16,7 @@
 #' @return list of SpatRaster result and list of statistics
 #'
 #' @export
-#' @importFrom dplyr %>%
+
 
 # TODO optimalise function
 # TODO whend result in WGS84 fix cellsize to fit degrees
@@ -35,8 +35,8 @@ LS_exposure = function(x, day=NULL, time_data = NULL, cellsize=100, buff_dist = 
   trajectories = terra::vect(trajectories_fun(x_proj))
 
   # create buffers over line segments
-  traj_buff = trajectories %>%
-    dplyr::select(line_id) %>%
+  traj_buff = trajectories |>
+    dplyr::select(line_id) |>
     terra::buffer(buff_dist) # takes a lot of time
 
 
@@ -62,21 +62,21 @@ LS_exposure = function(x, day=NULL, time_data = NULL, cellsize=100, buff_dist = 
   }
 
   # extract values and weights (area overlap) from grid for each cell of buffer
-  traj_extract= grid_rast %>%
+  traj_extract= grid_rast |>
     terra::extract(
       traj_buff,
       na.rm=TRUE,
       weights = TRUE
-    ) %>%
-    dplyr::as_tibble() %>%
+    ) |>
+    dplyr::as_tibble() |>
     dplyr::rename(
       line_id = ID,#rename this to line id
       e=2#second column is the exposure.
     )
 
   # calculate summarised exposure for each buffer
-  traj_extract_line_id = traj_extract %>%
-    dplyr::group_by(line_id) %>%
+  traj_extract_line_id = traj_extract |>
+    dplyr::group_by(line_id) |>
     dplyr::summarise(
       #Jan 9, 2024 use R's built-in weighted.mean() function
       #instead of calculating weighted average manually
@@ -87,25 +87,25 @@ LS_exposure = function(x, day=NULL, time_data = NULL, cellsize=100, buff_dist = 
       #These weights are based on the areal overlap, not time
       sum_weights = sum(weight,na.rm=T),
       n_pixel = dplyr::n() # number of observations corresponds to number of pixels per line segment
-    ) %>%
+    ) |>
     dplyr::ungroup()
 
   if (!(rlang::quo_is_null(time_data_null))){
 
-    duration_line_id = x %>%
+    duration_line_id = x |>
       dplyr::mutate(time_elapsed = as.integer(dplyr::lead({{time_data}}) - {{time_data}}),
-                    line_id = dplyr::row_number()) %>%
+                    line_id = dplyr::row_number()) |>
       dplyr::select(line_id, time_elapsed)
 
-    traj_extract_line_id = traj_extract_line_id %>%
+    traj_extract_line_id = traj_extract_line_id |>
       #now link in the time weight
-      dplyr::left_join(duration_line_id,by=c("line_id")) %>%
+      dplyr::left_join(duration_line_id,by=c("line_id")) |>
       dplyr::mutate(
         #calculate a weight that considers both area overlap and time
         end_weights = e * time_elapsed
       )
   } else {
-      traj_extract_line_id = traj_extract_line_id %>%
+      traj_extract_line_id = traj_extract_line_id |>
         dplyr::mutate(end_weights = e) # end result is exposure without time
     }
   # join weights with spatial buffer
