@@ -43,9 +43,9 @@ KDE_wgs = function(x, day=NULL, cellsize=100, smoothing = 0.0007, env_data=NULL,
   y_range = c(min(coords[[2]] - y_range_const), max(coords[[2]]) + y_range_const)
 
   # range distance in WGS84
-  dist_x = distm(c(x_range[1], y_range[1]), c(x_range[2], y_range[1]),
+  dist_x = BBmisc::distm(c(x_range[1], y_range[1]), c(x_range[2], y_range[1]),
                  fun = geosphere::distHaversine)
-  dist_y = distm(c(x_range[1], y_range[1]), c(x_range[1], y_range[2]),
+  dist_y = BBmisc::distm(c(x_range[1], y_range[1]), c(x_range[1], y_range[2]),
                  fun = geosphere::distHaversine)
 
   mean_xy_dist = ((dist_x / cellsize) + (dist_y / cellsize)) / 2

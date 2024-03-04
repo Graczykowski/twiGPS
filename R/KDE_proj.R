@@ -89,7 +89,7 @@ KDE_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
 
 
   if (normalize == TRUE){ # normalize kde values
-    kde_vals = BBmisc::normalize(as.vector(kde_rast), method = "range", range = c(0, 1),
+    kde_vals = BBmisc::normalize(as.vector(kde_data), method = "range", range = c(0, 1),
                                  margin = 1L, on.constant = "quiet")
   } else {
     kde_vals = kde_data
