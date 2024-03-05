@@ -78,7 +78,7 @@ DR_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
   y_cells = terra::nrow(grid_rast)
 
   # dr with sqrt bandwidth
-  dr_data = DR_simple(coords, kernel= "Gaussian", h = sqrt(bandwidth),
+  dr_data = DR_simple(coords, kernel= "Gaussian", h = bandwidth,
                       x_res=x_cells, y_res=y_cells, xlim=new_extent[1:2],
                       ylim=new_extent[3:4])
 
