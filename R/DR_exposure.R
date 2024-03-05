@@ -32,11 +32,11 @@ DR_exposure = function(x, day=NULL, cellsize=100, smoothing = 0.0007,
     x_points = x
   }
   else{
-    x_points = x %>% dplyr::filter(wearDate == day)
+    x_points = x  |>  dplyr::filter(wearDate == day)
   }
 
   # get df with coordinates
-  coords = x_points %>% dplyr::select("lon", "lat")
+  coords = x_points |> dplyr::select("lon", "lat")
 
 
 
