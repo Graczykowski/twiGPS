@@ -8,7 +8,7 @@ DR_exposure(
   x,
   day = NULL,
   cellsize = 100,
-  smoothing = 7e-04,
+  smoothing = 0.0007,
   normalize = TRUE,
   env_data = NULL,
   data_extent = NULL,
