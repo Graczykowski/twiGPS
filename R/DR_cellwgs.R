@@ -44,12 +44,11 @@ DR_cellwgs = function(x, day=NULL, cellsize=100, smoothing = 0.0007,
 
 
 
-  if (is.numeric(cellsize) & cellsize > 0) { # cellsize included
 
-    grid_rast = terra::rast(crs = terra::crs(x_proj))
-    terra::ext(grid_rast) = new_extent # ext before cellsize to avoid cellsize disproportion
-    terra::res(grid_rast) = cellsize
-  }
+  grid_rast = terra::rast(crs = terra::crs(x_proj))
+  terra::ext(grid_rast) = new_extent # ext before cellsize to avoid cellsize disproportion
+  terra::res(grid_rast) = cellsize
+
 
   # point coords
   coords = terra::geom(x_proj)[,3:4]
