@@ -63,7 +63,7 @@ PO_exposure = function(x, day=NULL, cellsize=100, env_data=NULL, normalize = FAL
   if (!is.null(env_data)){ # calculate exposure
     env_data_proj = terra::project(env_data, rast_points)
     # only for one point data check
-    env_max = terra:minmax(env_data)[2]
+    env_max = terra::minmax(env_data)[2]
     env_data_proj[env_data_proj > env_max] = NA
     ##
     env_data_resamp = terra::resample(env_data_proj, rast_points)

@@ -105,7 +105,7 @@ KDE_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
   if (!is.null(env_data)){ # calculate exposure
     env_data_proj = terra::project(env_data, kde_rast)
     # only for one point data check
-    env_max = terra:minmax(env_data)[2]
+    env_max = terra::minmax(env_data)[2]
     env_data_proj[env_data_proj > env_max] = NA
     ##
     env_data_resamp = terra::resample(env_data_proj, kde_rast)
