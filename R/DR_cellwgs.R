@@ -61,7 +61,7 @@ DR_cellwgs = function(x, day=NULL, cellsize=100, smoothing = 0.0007,
 
 
   # calculate DR data
-  dr_data = DR_simple(coords, kernel= "Gaussian", h = bandwidth,
+  dr_data = DR_simple(coords, kernel= "Gaussian", h = smoothing,
                       x_res=x_cells, y_res=y_cells, xlim=new_extent[1:2],
                       ylim=new_extent[3:4])
 
