@@ -67,23 +67,23 @@ DR_cellwgs = function(x, day=NULL, cellsize=100, smoothing = 0.0007,
 
 
   # creating empty raster to insert KDE values
-  len_lon = length(DR_data$x_grid)
-  len_lat = length(DR_data$y_grid)
+  len_lon = length(dr_data$x_grid)
+  len_lat = length(dr_data$y_grid)
 
-  lon_min = min(DR_data$x_grid)
-  lon_max = max(DR_data$x_grid)
-  lat_min = min(DR_data$y_grid)
-  lat_max = max(DR_data$y_grid)
+  lon_min = min(dr_data$x_grid)
+  lon_max = max(dr_data$x_grid)
+  lat_min = min(dr_data$y_grid)
+  lat_max = max(dr_data$y_grid)
 
   spat_dr_rast = terra::rast(nrows=len_lat, ncols=len_lon, xmin=lon_min, xmax=lon_max,
                              ymin=lat_min, ymax=lat_max)
 
   # insert KDE values to raster
   if (normalize == TRUE){
-    dr_values = BBmisc::normalize(DR_data$gr_alpha, method = "range", range = c(0, 1),
+    dr_values = BBmisc::normalize(dr_data$gr_alpha, method = "range", range = c(0, 1),
                                   margin = 1L, on.constant = "quiet")
   } else {
-    dr_values = DR_data$gr_alpha
+    dr_values = dr_data$gr_alpha
   }
   terra::values(spat_dr_rast) = dr_values
   spat_dr_rast[spat_dr_rast == 0] = NA # NA vals
