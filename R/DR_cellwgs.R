@@ -28,7 +28,7 @@ DR_cellwgs = function(x, day=NULL, cellsize=100, smoothing = 0.0007,
 
   buff_const = 0.05 #percent of extent as bbox
 
-  x_proj = start_processing(x, day, env_data, data_extent, start_crs, "WGS84")
+  x_proj = start_processing(x, day, env_data, data_extent, "WGS84", "WGS84")
 
 
   # get extent

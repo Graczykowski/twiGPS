@@ -8,7 +8,7 @@ KDE_wgs(
   x,
   day = NULL,
   cellsize = 100,
-  smoothing = 7e-04,
+  smoothing = 0.0007,
   env_data = NULL,
   normalize = FALSE,
   data_extent = NULL,
