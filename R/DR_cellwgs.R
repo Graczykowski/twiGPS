@@ -21,7 +21,7 @@
 #' @export
 
 
-DR_exposure = function(x, day=NULL, cellsize=100, smoothing = 0.0007,
+DR_cellwgs = function(x, day=NULL, cellsize=100, smoothing = 0.0007,
                        normalize = TRUE, env_data=NULL,
                        data_extent = NULL, # TODO extent
                        stats=NULL, act_and_env=FALSE){ # TODO act_and_env
