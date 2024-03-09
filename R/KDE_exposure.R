@@ -20,11 +20,6 @@
 #'
 #'
 #' @export
-
-
-
-
-
 KDE_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
                     normalize = FALSE, data_extent = NULL, # TODO extent
                     start_crs = "WGS84", end_crs=NULL, stats=NULL,
