@@ -115,6 +115,7 @@ trajectories_fun = function(data){
       cols = c(x_start, y_start, x_end, y_end),
       #value goes to "x/y", and time goes to "_start/end"
       names_to = c(".value", "time"),
+      names_repair = "unique",
       names_sep = "_"#the separator for the column name
     ) |>
     # create sf object once again

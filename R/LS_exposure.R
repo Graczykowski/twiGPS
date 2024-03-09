@@ -5,7 +5,7 @@
 #' @param day string in date format compatible with date column in x
 #' @param time_data name of column in x containing POSIXct data class
 #' @param cellsize size of raster cell in meters
-#' @param buff_dist size of buffer im meter
+#' @param bandwidth size of segments im meters
 #' @param env_data SpatRaster object of envirinmental data
 #' @param data_extent TODO
 #' @param start_crs coordinate system of coordinates in x data frame
@@ -20,7 +20,7 @@
 
 # TODO optimalise function
 # TODO whend result in WGS84 fix cellsize to fit degrees
-LS_exposure = function(x, day=NULL, time_data = NULL, cellsize=100, buff_dist = 200,
+LS_exposure = function(x, day=NULL, time_data = NULL, cellsize=100, bandwidth = 200,
                        env_data=NULL, data_extent = NULL, # TODO extent
                        start_crs = "WGS84", end_crs=NULL, stats=NULL,
                        act_and_env=FALSE){ # TODO act_and_env
@@ -37,13 +37,13 @@ LS_exposure = function(x, day=NULL, time_data = NULL, cellsize=100, buff_dist = 
   # create buffers over line segments
   traj_buff = trajectories |>
     dplyr::select(line_id) |>
-    terra::buffer(buff_dist) # takes a lot of time
+    terra::buffer(bandwidth) # takes a lot of time
 
 
   # create grid raster
 
   if (is.numeric(cellsize) & cellsize > 0) { # cellsize included
-    grid_rast = terra::rast(crs = terra::crs(trajectories), extent = terra::ext(trajectories),
+    grid_rast = terra::rast(crs = terra::crs(trajectories), extent = terra::ext(traj_buff),
                             resolution = cellsize, vals = 1) # vals of grid with weight 1
 
     if (!is.null(env_data)){ # env_data included
@@ -58,7 +58,7 @@ LS_exposure = function(x, day=NULL, time_data = NULL, cellsize=100, buff_dist = 
     # grid data as env grid
     grid_rast = terra::project(env_data, terra::crs(trajectories))
 
-    terra::ext(grid_rast) = terra::ext(trajectories) # ext as line segments
+    terra::ext(grid_rast) = terra::ext(traj_buff) # ext as line segments
   }
 
   # extract values and weights (area overlap) from grid for each cell of buffer
