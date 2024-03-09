@@ -2,7 +2,7 @@
 % Please edit documentation in R/KDE_exposure.R
 \name{KDE_exposure}
 \alias{KDE_exposure}
-\title{Kernel Density Estimation exposure}
+\title{Kernel Density Estimation in Projected Coordinate Systems}
 \usage{
 KDE_exposure(
   x,
@@ -45,5 +45,5 @@ KDE_exposure(
 list of SpatRaster result and list of statistics
 }
 \description{
-working in all projections but slow
+Code working fast with results to check, working well in projected coordinate systems, WGS84 yet to do
 }
