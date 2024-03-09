@@ -5,7 +5,7 @@
 #' @param x data frame with lon lat coordinate columns
 #' @param day string in date format compatible with date column in x
 #' @param cellsize size of raster cell in meters
-#' @param bandwidth bandwidth in unit of x
+#' @param bandwidth bandwidth in unit of x (if in degrees working as bandwidth in DR)
 #' @param env_data SpatRaster object of envirinmental data
 #' @param normalize argument if activity data should be normalized to 0-1 values range
 #' @param data_extent TODO
@@ -93,8 +93,15 @@ KDE_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NUL
   # point coords
   coords = terra::geom(x_proj)[,3:4]
 
-  # kde with sqrt bandwidth
-  kde_data = TDA::kde(coords, Grid = expand_grid, h = sqrt(bandwidth))
+
+  # when in degrees smoothing parameter not sqrt until resolving the output of kde
+  if (terra::linearUnits(x_proj) == 0){
+    kde_data = TDA::kde(coords, Grid = expand_grid, h = bandwidth)
+  } else {
+    # kde with sqrt bandwidth
+    kde_data = TDA::kde(coords, Grid = expand_grid, h = sqrt(bandwidth))
+  }
+
 
   # params for empty raster
   len_x <- length(x_seq)
