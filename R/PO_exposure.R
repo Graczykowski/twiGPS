@@ -4,7 +4,7 @@
 #' @param x data frame with lon lat coordinate columns
 #' @param day string in date format compatible with date column in x
 #' @param cellsize size of raster cell in meters
-#' @param env_data SparRaster object of envirinmental data
+#' @param env_data SpatRaster object of envirinmental data
 #' @param normalize argument if activity data should be normalized to 0-1 values range
 #' @param data_extent TODO
 #' @param start_crs coordinate system of coordinates in x data frame

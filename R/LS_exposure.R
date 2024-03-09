@@ -6,7 +6,7 @@
 #' @param time_data name of column in x containing POSIXct data class
 #' @param cellsize size of raster cell in meters
 #' @param buff_dist size of buffer im meter
-#' @param env_data SparRaster object of envirinmental data
+#' @param env_data SpatRaster object of envirinmental data
 #' @param data_extent TODO
 #' @param start_crs coordinate system of coordinates in x data frame
 #' @param end_crs coordinate system of output
