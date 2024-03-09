@@ -8,10 +8,12 @@ DR_exposure(
   x,
   day = NULL,
   cellsize = 100,
-  smoothing = 0.0007,
-  normalize = TRUE,
+  bandwidth = 200,
   env_data = NULL,
+  normalize = FALSE,
   data_extent = NULL,
+  start_crs = "WGS84",
+  end_crs = NULL,
   stats = NULL,
   act_and_env = FALSE
 )
@@ -23,13 +25,17 @@ DR_exposure(
 
 \item{cellsize}{size of raster cell in meters}
 
-\item{smoothing}{smoothing parameter}
+\item{bandwidth}{bandwidth in units of x}
+
+\item{env_data}{SpatRaster object of envirinmental data}
 
 \item{normalize}{argument if activity data should be normalized to 0-1 values range}
 
-\item{env_data}{SparRaster object of envirinmental data}
-
 \item{data_extent}{TODO}
+
+\item{start_crs}{coordinate system of coordinates in x data frame}
+
+\item{end_crs}{coordinate system of output}
 
 \item{stats}{statistics calculated}
 
@@ -39,5 +45,5 @@ DR_exposure(
 list of SpatRaster result and list of statistics
 }
 \description{
-Using DR function from Yen-Chi Chen's repository density_ranking, only in WGS84 with smoothing parameter
+Using modifed DR function from Yen-Chi Chen's repository density_ranking, bandwidth as smoothing parameter still to check
 }
