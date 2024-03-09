@@ -83,7 +83,7 @@ DR_cellwgs = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
   coords = terra::geom(x_proj)[,3:4]
 
   # number of cells
-  if (exists(grid_rast)){
+  if (exists("grid_rast")){
     x_cells = terra::ncol(grid_rast)
     y_cells = terra::nrow(grid_rast)
   }
