@@ -1,6 +1,6 @@
 Package: twsagps
 Title: TWSA in GPS health data
-Version: 0.0.0.9300
+Version: 0.0.1
 Authors@R: 
     person("Igor", "Graczykowski", , "igor.graczykowski@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
