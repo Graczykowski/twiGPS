@@ -4,6 +4,7 @@
 #' @param x data frame with lon lat coordinate columns
 #' @param day string in date format compatible with date column in x
 #' @param time_data name of column in x containing POSIXct data class
+#' @param time_unit unit of weights of time_data, ignored if time_data ignored
 #' @param cellsize size of raster cell in meters
 #' @param bandwidth size of segments im meters
 #' @param env_data SpatRaster object of envirinmental data
@@ -20,7 +21,8 @@
 
 # TODO optimalise function
 # TODO whend result in WGS84 fix cellsize to fit degrees
-LS_exposure = function(x, day=NULL, time_data = NULL, cellsize=100, bandwidth = 200,
+LS_exposure = function(x, day=NULL, time_data = NULL, time_unit = "mins",
+                       cellsize=100, bandwidth = 200,
                        env_data=NULL, data_extent = NULL, # TODO extent
                        start_crs = "WGS84", end_crs=NULL, stats=NULL,
                        act_and_env=FALSE){ # TODO act_and_env
@@ -93,7 +95,8 @@ LS_exposure = function(x, day=NULL, time_data = NULL, cellsize=100, bandwidth = 
   if (!(rlang::quo_is_null(time_data_null))){
 
     duration_line_id = x |>
-      dplyr::mutate(time_elapsed = as.integer(dplyr::lead({{time_data}}) - {{time_data}}),
+      dplyr::mutate(time_elapsed = as.numeric(difftime(dplyr::lead({{time_data}}),
+                                                       {{time_data}} units = time_unit )),
                     line_id = dplyr::row_number()) |>
       dplyr::select(line_id, time_elapsed)
 
