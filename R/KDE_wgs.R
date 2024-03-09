@@ -29,6 +29,12 @@ KDE_wgs = function(x, day=NULL, cellsize=100, smoothing = 0.0007, env_data=NULL,
     x_points = x %>% dplyr::filter(wearDate == day)
   }
 
+
+
+  if (!is.null(env_data)){ # change env_data crs beforehand
+    env_data_proj = terra::project(env_data, terra::crs("WGS84"))
+  }
+
   # get df with coordinates
   coords = x_points %>% dplyr::select("lon", "lat")
 
@@ -83,9 +89,8 @@ KDE_wgs = function(x, day=NULL, cellsize=100, smoothing = 0.0007, env_data=NULL,
 
 
   if (!is.null(env_data)){ # calculate exposure
-    env_kde_proj = terra::project(env_data, kde_wgs_rast)
-    env_kde_resamp = terra::resample(env_kde_proj, kde_wgs_rast)
-    rast_env_kde_wgs = kde_wgs_rast * env_kde_resamp
+    env_data_resamp = terra::resample(env_data_proj, kde_wgs_rast)
+    rast_env_kde_wgs = kde_wgs_rast * env_data_resamp
 
 
     # calculate env output

@@ -47,6 +47,10 @@ DR_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
   new_extent = c(terra::xmin(extent) - x_const_dr, terra::xmax(extent) + x_const_dr,
                  terra::ymin(extent) - y_const_dr, terra::ymax(extent) + y_const_dr)
 
+  if (!is.null(env_data)){ # change env_data crs beforehand
+    env_data_proj = terra::project(env_data, terra::crs(x_proj))
+  }
+
 
 
   if (is.numeric(cellsize) & cellsize > 0) { # cellsize included
@@ -56,7 +60,7 @@ DR_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
     terra::res(grid_rast) = cellsize
   } else if (!is.null(env_data)){ #if incorrect cellsize and env_data exists
 
-    grid_rast = env_data
+    grid_rast = env_data_proj
     terra::ext(grid_rast) = new_extent # ext before cellsize to avoid cellsize disproportion
     terra::res(grid_rast) = terra::res(env_data)
   }
@@ -115,7 +119,6 @@ DR_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
 
 
   if (!is.null(env_data)){ # calculate exposure
-    env_data_proj = terra::project(env_data, dr_rast)
     env_data_resamp = terra::resample(env_data_proj, dr_rast)
     dr_env_rast = dr_rast * env_data_resamp
 

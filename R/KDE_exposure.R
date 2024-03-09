@@ -33,13 +33,17 @@ KDE_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NUL
   x_proj = start_processing(x, day, env_data, data_extent, start_crs, end_crs)
 
 
+  if (!is.null(env_data)){ # change env_data crs beforehand
+    env_data_proj = terra::project(env_data, terra::crs(x_proj))
+  }
+
   if (is.numeric(cellsize) & cellsize > 0) { # cellsize included
 
     grid_rast = terra::rast(crs = terra::crs(x_proj), extent = terra::ext(x_proj),
                              resolution = cellsize)
   } else if (!is.null(env_data)){ #if incorrect cellsize and env_data exists
 
-    grid_rast = env_data
+    grid_rast = env_data_proj
     terra::ext(grid_rast) = terra::ext(x_proj)
   }
 
@@ -64,7 +68,6 @@ KDE_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NUL
   spat_kde_rast = terra::rast(spat_kde_rast)
 
   if (!is.null(env_data)){ # calculate exposure
-    env_data_proj = terra::project(env_data, spat_kde_rast)
     env_data_resamp = terra::resample(env_data_proj, spat_kde_rast)
     rast_env_kde = spat_kde_rast * env_data_resamp
 

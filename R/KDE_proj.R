@@ -35,6 +35,10 @@ KDE_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
   x_proj = start_processing(x, day, env_data, data_extent, start_crs, end_crs)
 
 
+  if (!is.null(env_data)){ # change env_data crs beforehand
+    env_data_proj = terra::project(env_data, terra::crs(x_proj))
+  }
+
   # get extent
   extent = terra::ext(x_proj)
 
@@ -55,7 +59,7 @@ KDE_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
     terra::res(grid_rast) = cellsize #TODO small cellsize disproportion
   } else if (!is.null(env_data)){ #if incorrect cellsize and env_data exists
 
-    grid_rast = env_data
+    grid_rast = env_data_proj
     terra::ext(grid_rast) = new_extent # ext before cellsize to avoid cellsize disproportion
     terra::res(grid_rast) = terra::res(env_data)
   }
@@ -103,14 +107,13 @@ KDE_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
 
 
   if (!is.null(env_data)){ # calculate exposure
-    env_data_proj = terra::project(env_data, kde_rast)
     # only for one point data check
-    env_max = terra::minmax(env_data)[2]
-    env_data_proj[env_data_proj > env_max] = NA
+    # env_max = terra::minmax(env_data)[2]
+    # env_data_proj[env_data_proj > env_max] = NA
     ##
     env_data_resamp = terra::resample(env_data_proj, kde_rast)
     ##
-    env_data_resamp[env_data_resamp > env_max] = NA
+    # env_data_resamp[env_data_resamp > env_max] = NA
     ##
     kde_env_rast = kde_rast * env_data_resamp
 

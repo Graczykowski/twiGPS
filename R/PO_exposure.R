@@ -34,6 +34,12 @@ PO_exposure = function(x, day=NULL, cellsize=100, env_data=NULL, normalize = FAL
 
   x_proj$rast = 1
 
+
+  if (!is.null(env_data)){ # change env_data crs beforehand
+    env_data_proj = terra::project(env_data, terra::crs(x_proj))
+  }
+
+
   if (is.numeric(cellsize) & cellsize > 0) { # cellsize included
 
     empty_rast = terra::rast(crs = terra::crs(x_proj), extent = terra::ext(x_proj),
@@ -44,7 +50,7 @@ PO_exposure = function(x, day=NULL, cellsize=100, env_data=NULL, normalize = FAL
 
   } else if (!is.null(env_data)){ #if incorrect cellsize and env_data exists
 
-    rast_points = terra::rasterize(x_proj, env_data, field = "rast", fun = sum)
+    rast_points = terra::rasterize(x_proj, env_data_proj, field = "rast", fun = sum)
     terra::ext(rast_points) = terra::ext(x_proj)
 
   }
@@ -61,14 +67,13 @@ PO_exposure = function(x, day=NULL, cellsize=100, env_data=NULL, normalize = FAL
 
 
   if (!is.null(env_data)){ # calculate exposure
-    env_data_proj = terra::project(env_data, rast_points)
     # only for one point data check
-    env_max = terra::minmax(env_data)[2]
-    env_data_proj[env_data_proj > env_max] = NA
+    # env_max = terra::minmax(env_data)[2]
+    # env_data_proj[env_data_proj > env_max] = NA
     ##
     env_data_resamp = terra::resample(env_data_proj, rast_points)
     ## only for one point data check
-    env_data_resamp[env_data_resamp > env_max] = NA
+    # env_data_resamp[env_data_resamp > env_max] = NA
     ##
     rast_env_points = rast_points * env_data_resamp
 
