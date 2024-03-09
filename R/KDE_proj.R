@@ -61,7 +61,7 @@ KDE_proj = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
 
     grid_rast = env_data_proj
     terra::ext(grid_rast) = new_extent # ext before cellsize to avoid cellsize disproportion
-    terra::res(grid_rast) = terra::res(env_data)
+    terra::res(grid_rast) = terra::res(env_data_proj)
   }
 
   # coordinate seq
