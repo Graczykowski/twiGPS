@@ -2,7 +2,7 @@
 % Please edit documentation in R/KDE_exposure.R
 \name{KDE_exposure}
 \alias{KDE_exposure}
-\title{Kernel Density Estimation exposure}
+\title{Kernel Density Estimation in Projected Coordinate Systems}
 \usage{
 KDE_exposure(
   x,
@@ -10,6 +10,7 @@ KDE_exposure(
   cellsize = 100,
   bandwidth = 200,
   env_data = NULL,
+  normalize = FALSE,
   data_extent = NULL,
   start_crs = "WGS84",
   end_crs = NULL,
@@ -28,6 +29,8 @@ KDE_exposure(
 
 \item{env_data}{SparRaster object of envirinmental data}
 
+\item{normalize}{argument if activity data should be normalized to 0-1 values range}
+
 \item{data_extent}{TODO}
 
 \item{start_crs}{coordinate system of coordinates in x data frame}
@@ -42,5 +45,5 @@ KDE_exposure(
 list of SpatRaster result and list of statistics
 }
 \description{
-working in all projections but slow
+Code working fast with results to check, working well in projected coordinate systems, WGS84 yet to do
 }

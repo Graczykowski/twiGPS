@@ -29,7 +29,7 @@ LS_exposure(
 
 \item{buff_dist}{size of buffer im meter}
 
-\item{env_data}{SparRaster object of envirinmental data}
+\item{env_data}{SpatRaster object of envirinmental data}
 
 \item{data_extent}{TODO}
 

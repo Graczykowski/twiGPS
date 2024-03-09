@@ -9,6 +9,7 @@ PO_exposure(
   day = NULL,
   cellsize = 100,
   env_data = NULL,
+  normalize = FALSE,
   data_extent = NULL,
   start_crs = "WGS84",
   end_crs = NULL,
@@ -23,7 +24,9 @@ PO_exposure(
 
 \item{cellsize}{size of raster cell in meters}
 
-\item{env_data}{SparRaster object of envirinmental data}
+\item{env_data}{SpatRaster object of envirinmental data}
+
+\item{normalize}{argument if activity data should be normalized to 0-1 values range}
 
 \item{data_extent}{TODO}
 
