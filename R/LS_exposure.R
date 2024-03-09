@@ -51,7 +51,8 @@ LS_exposure = function(x, day=NULL, time_data = NULL, time_unit = "mins",
   if (is.numeric(cellsize) & cellsize > 0) { # cellsize included
 
     if (terra::linearUnits(x_proj) == 0){ # crs units in degrees
-      extent_buff = ext(traj_buff)
+
+      extent_buff = terra::ext(traj_buff)
       dist_lon = geosphere::distm(c(extent_buff[1], extent_buff[3]), c(extent_buff[2], extent_buff[3]),
                                   fun = geosphere::distHaversine)
       dist_lat = geosphere::distm(c(extent_buff[1], extent_buff[3]), c(extent_buff[1], extent_buff[4]),

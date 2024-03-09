@@ -42,8 +42,41 @@ PO_exposure = function(x, day=NULL, cellsize=100, env_data=NULL, normalize = FAL
 
   if (is.numeric(cellsize) & cellsize > 0) { # cellsize included
 
-    empty_rast = terra::rast(crs = terra::crs(x_proj), extent = terra::ext(x_proj),
-                             resolution = cellsize)
+    if (terra::linearUnits(x_proj) == 0){ # crs units in degrees
+      # PUT IT IN SEPERATE FUNCTION
+
+      extent = terra::ext(x_proj)
+      dist_lon = geosphere::distm(c(extent[1], extent[3]), c(extent[2], extent[3]),
+                                  fun = geosphere::distHaversine)
+      dist_lat = geosphere::distm(c(extent[1], extent[3]), c(extent[1], extent[4]),
+                                  fun = geosphere::distHaversine)
+      # number of cells
+      x_cells = (dist_lon / cellsize) |> as.integer()
+      y_cells = (dist_lat / cellsize) |> as.integer()
+
+      x_seq = seq(extent[1], extent[2], length.out = x_cells)
+      y_seq = seq(extent[3], extent[4], length.out = y_cells)
+
+
+      # params for empty raster
+      len_x <- length(x_seq)
+      len_y <- length(y_seq)
+
+      # x, y limits
+      x_min = min(x_seq)
+      x_max = max(x_seq)
+      y_min = min(y_seq)
+      y_max = max(y_seq)
+
+      # empty_rast for units in degrees
+      empty_rast = terra::rast(crs = terra::crs(x_proj), nrows=len_y,
+                              ncols=len_x, xmin=x_min, xmax=x_max, ymin=y_min,
+                              ymax=y_max)
+
+    } else {
+      empty_rast = terra::rast(crs = terra::crs(x_proj), extent = terra::ext(x_proj),
+                               resolution = cellsize)
+    }
 
     # rasterize points to created raster
     rast_points = terra::rasterize(x_proj, empty_rast, field = "rast", fun = sum)
@@ -54,6 +87,7 @@ PO_exposure = function(x, day=NULL, cellsize=100, env_data=NULL, normalize = FAL
     terra::ext(rast_points) = terra::ext(x_proj)
 
   }
+
   if (normalize == TRUE){
 
     rast_points = terra::subst(rast_points, from = NA, to = 0) # proper range for normalization
