@@ -42,23 +42,58 @@ LS_exposure = function(x, day=NULL, time_data = NULL, time_unit = "mins",
     terra::buffer(bandwidth) # takes a lot of time
 
 
+  if (!is.null(env_data)){ # change env_data crs beforehand
+    env_data_proj = terra::project(env_data, terra::crs(x_proj))
+  }
+
   # create grid raster
 
   if (is.numeric(cellsize) & cellsize > 0) { # cellsize included
-    grid_rast = terra::rast(crs = terra::crs(trajectories), extent = terra::ext(traj_buff),
-                            resolution = cellsize, vals = 1) # vals of grid with weight 1
+
+    if (terra::linearUnits(x_proj) == 0){ # crs units in degrees
+      extent_buff = ext(traj_buff)
+      dist_lon = geosphere::distm(c(extent_buff[1], extent_buff[3]), c(extent_buff[2], extent_buff[3]),
+                                  fun = geosphere::distHaversine)
+      dist_lat = geosphere::distm(c(extent_buff[1], extent_buff[3]), c(extent_buff[1], extent_buff[4]),
+                                  fun = geosphere::distHaversine)
+      # number of cells
+      x_cells = (dist_lon / cellsize) |> as.integer()
+      y_cells = (dist_lat / cellsize) |> as.integer()
+
+      x_seq = seq(extent_buff[1], extent_buff[2], length.out = x_cells)
+      y_seq = seq(extent_buff[3], extent_buff[4], length.out = y_cells)
+
+
+      # params for empty raster
+      len_x <- length(x_seq)
+      len_y <- length(y_seq)
+
+      # x, y limits
+      x_min = min(x_seq)
+      x_max = max(x_seq)
+      y_min = min(y_seq)
+      y_max = max(y_seq)
+
+      #grid rast for units in degrees
+      grid_rast = terra::rast(crs = terra::crs(trajectories), nrows=len_y,
+                              ncols=len_x, xmin=x_min, xmax=x_max, ymin=y_min,
+                              ymax=y_max, vals = 1) # vals of grid with weight 1
+
+    } else {
+      grid_rast = terra::rast(crs = terra::crs(trajectories), extent = terra::ext(traj_buff),
+                              resolution = cellsize, vals = 1) # vals of grid with weight 1
+    }
 
     if (!is.null(env_data)){ # env_data included
       # replace vals of grid with env values
-      env_proj = terra::project(env_data, grid_rast)
-      env_resamp = terra::resample(env_proj, grid_rast)
+      env_resamp = terra::resample(env_data_proj, grid_rast)
       terra::values(grid_rast) = terra::values(env_resamp)
 
     }
 
   } else if (!is.null(env_data)){ #if incorrect cellsize and env_data exists
     # grid data as env grid
-    grid_rast = terra::project(env_data, terra::crs(trajectories))
+    grid_rast = env_data_proj
 
     terra::ext(grid_rast) = terra::ext(traj_buff) # ext as line segments
   }
