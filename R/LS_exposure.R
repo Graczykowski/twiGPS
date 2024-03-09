@@ -96,7 +96,7 @@ LS_exposure = function(x, day=NULL, time_data = NULL, time_unit = "mins",
 
     duration_line_id = x |>
       dplyr::mutate(time_elapsed = as.numeric(difftime(dplyr::lead({{time_data}}),
-                                                       {{time_data}} units = time_unit )),
+                                                       {{time_data}}, units = time_unit )),
                     line_id = dplyr::row_number()) |>
       dplyr::select(line_id, time_elapsed)
 
