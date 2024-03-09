@@ -1,12 +1,12 @@
 #' Kernel Density Estimation in Projected Coordinate Systems
 #' @description
-#' Code working fast with results to check, working well in projected coordinate systems, WGS84 yet to do
+#' Code working fast with smoothing parameter as bandwidth still to check
 #'
 #' @param x data frame with lon lat coordinate columns
 #' @param day string in date format compatible with date column in x
 #' @param cellsize size of raster cell in meters
-#' @param bandwidth bandwidth in meters
-#' @param env_data SparRaster object of envirinmental data
+#' @param bandwidth bandwidth in unit of x
+#' @param env_data SpatRaster object of envirinmental data
 #' @param normalize argument if activity data should be normalized to 0-1 values range
 #' @param data_extent TODO
 #' @param start_crs coordinate system of coordinates in x data frame
@@ -30,9 +30,6 @@ KDE_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NUL
   x_proj = start_processing(x, day, env_data, data_extent, start_crs, end_crs)
 
 
-  if (!is.null(env_data)){ # change env_data crs beforehand
-    env_data_proj = terra::project(env_data, terra::crs(x_proj))
-  }
 
   # get extent
   extent = terra::ext(x_proj)
@@ -46,12 +43,30 @@ KDE_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NUL
                  terra::ymin(extent) - y_const_kde, terra::ymax(extent) + y_const_kde)
   #TODO small cellsize disproportion
 
+  if (!is.null(env_data)){ # change env_data crs beforehand
+    env_data_proj = terra::project(env_data, terra::crs(x_proj))
+  }
+
+
 
   if (is.numeric(cellsize) & cellsize > 0) { # cellsize included
 
-    grid_rast = terra::rast(crs = terra::crs(x_proj))
-    terra::ext(grid_rast) = new_extent # ext before cellsize to avoid cellsize disproportion
-    terra::res(grid_rast) = cellsize #TODO small cellsize disproportion
+    if (terra::linearUnits(x_proj) == 0){ # crs units in degrees
+      dist_lon = geosphere::distm(c(new_extent[1], new_extent[3]), c(new_extent[2], new_extent[3]),
+                                  fun = geosphere::distHaversine)
+      dist_lat = geosphere::distm(c(new_extent[1], new_extent[3]), c(new_extent[1], new_extent[4]),
+                                  fun = geosphere::distHaversine)
+
+      x_cells = (dist_lon / cellsize) |> as.integer()
+
+      y_cells = (dist_lat / cellsize) |> as.integer()
+
+    } else {
+      grid_rast = terra::rast(crs = terra::crs(x_proj))
+      terra::ext(grid_rast) = new_extent # ext before cellsize to avoid cellsize disproportion
+      terra::res(grid_rast) = cellsize #TODO small cellsize disproportion
+    }
+
   } else if (!is.null(env_data)){ #if incorrect cellsize and env_data exists
 
     grid_rast = env_data_proj
@@ -59,9 +74,18 @@ KDE_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NUL
     terra::res(grid_rast) = terra::res(env_data_proj)
   }
 
+  # number of cells
+  if (exists("grid_rast")){
+    x_cells = terra::ncol(grid_rast)
+    y_cells = terra::nrow(grid_rast)
+  }
+
+
+
+
   # coordinate seq
-  x_seq = seq(new_extent[1], new_extent[2], length.out = terra::ncol(grid_rast))
-  y_seq = seq(new_extent[3], new_extent[4], length.out = terra::nrow(grid_rast))
+  x_seq = seq(new_extent[1], new_extent[2], length.out = x_cells)
+  y_seq = seq(new_extent[3], new_extent[4], length.out = y_cells)
 
   # coords of every cell
   expand_grid = expand.grid(x_seq,y_seq)
