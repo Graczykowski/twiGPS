@@ -20,7 +20,7 @@
 #' @export
 
 
-PO_exposure = function(x, day=NULL, cellsize=100, env_data=NULL, normalize = FALSE,
+PO_exposure = function(x, day=NULL, cellsize=NULL, env_data=NULL, normalize = FALSE,
                        data_extent = NULL, # TODO extent
                        start_crs = "WGS84", end_crs=NULL, stats=NULL,
                        act_and_env=FALSE){ # TODO act_and_env
@@ -28,19 +28,19 @@ PO_exposure = function(x, day=NULL, cellsize=100, env_data=NULL, normalize = FAL
 
   x_proj = start_processing(x, day, env_data, data_extent, start_crs, end_crs)
 
-
+  if (!is.null(env_data)){ # change env_data crs beforehand
+    env_data_proj = terra::project(env_data, terra::crs(x_proj))
+  }
 
   # rasterize
 
   x_proj$rast = 1
 
 
-  if (!is.null(env_data)){ # change env_data crs beforehand
-    env_data_proj = terra::project(env_data, terra::crs(x_proj))
-  }
 
 
-  if (is.numeric(cellsize) & cellsize > 0) { # cellsize included
+  # implement cellsize > 0 condition
+  if (is.numeric(cellsize)) { # cellsize included
 
     if (terra::linearUnits(x_proj) == 0){ # crs units in degrees
       # PUT IT IN SEPERATE FUNCTION
@@ -54,39 +54,42 @@ PO_exposure = function(x, day=NULL, cellsize=100, env_data=NULL, normalize = FAL
       x_cells = (dist_lon / cellsize) |> as.integer()
       y_cells = (dist_lat / cellsize) |> as.integer()
 
-      x_seq = seq(extent[1], extent[2], length.out = x_cells)
-      y_seq = seq(extent[3], extent[4], length.out = y_cells)
-
-
-      # params for empty raster
-      len_x <- length(x_seq)
-      len_y <- length(y_seq)
-
-      # x, y limits
-      x_min = min(x_seq)
-      x_max = max(x_seq)
-      y_min = min(y_seq)
-      y_max = max(y_seq)
+      ### PROBABLY DOESNT MATTER
+      # x_seq = seq(extent[1], extent[2], length.out = x_cells)
+      # y_seq = seq(extent[3], extent[4], length.out = y_cells)
+      #
+      #
+      # # params for empty raster
+      # len_x <- length(x_seq)
+      # len_y <- length(y_seq)
+      #
+      # # x, y limits
+      # x_min = min(x_seq)
+      # x_max = max(x_seq)
+      # y_min = min(y_seq)
+      # y_max = max(y_seq)
+      ###
 
       # empty_rast for units in degrees
-      empty_rast = terra::rast(crs = terra::crs(x_proj), nrows=len_y,
-                              ncols=len_x, xmin=x_min, xmax=x_max, ymin=y_min,
-                              ymax=y_max)
+      grid_rast = terra::rast(crs = terra::crs(x_proj), nrows=y_cells,
+                              ncols=x_cells, extent = extent)
 
     } else {
-      empty_rast = terra::rast(crs = terra::crs(x_proj), extent = terra::ext(x_proj),
+      grid_rast = terra::rast(crs = terra::crs(x_proj), extent = terra::ext(x_proj),
                                resolution = cellsize)
     }
 
     # rasterize points to created raster
-    rast_points = terra::rasterize(x_proj, empty_rast, field = "rast", fun = sum)
+
 
   } else if (!is.null(env_data)){ #if incorrect cellsize and env_data exists
 
-    rast_points = terra::rasterize(x_proj, env_data_proj, field = "rast", fun = sum)
+    grid_rast = env_data_proj
     terra::ext(rast_points) = terra::ext(x_proj)
 
   }
+
+  rast_points = terra::rasterize(x_proj, grid_rast, field = "rast", fun = sum)
 
   if (normalize == TRUE){
 

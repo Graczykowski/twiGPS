@@ -22,7 +22,7 @@
 # TODO optimalise function
 # TODO whend result in WGS84 fix cellsize to fit degrees
 LS_exposure = function(x, day=NULL, time_data = NULL, time_unit = "mins",
-                       cellsize=100, bandwidth = 200,
+                       cellsize=NULL, bandwidth = 200,
                        env_data=NULL, data_extent = NULL, # TODO extent
                        start_crs = "WGS84", end_crs=NULL, stats=NULL,
                        act_and_env=FALSE){ # TODO act_and_env
@@ -33,22 +33,25 @@ LS_exposure = function(x, day=NULL, time_data = NULL, time_unit = "mins",
   # get spatial data with correct crs
   x_proj = start_processing(x, day, env_data, data_extent, start_crs, end_crs)
 
+  if (!is.null(env_data)){ # change env_data crs beforehand
+    env_data_proj = terra::project(env_data, terra::crs(x_proj))
+  }
+
   # create line segments from spatial points
   trajectories = terra::vect(trajectories_fun(x_proj))
 
   # create buffers over line segments
   traj_buff = trajectories |>
-    dplyr::select(line_id) |>
+    tidyterra::select(line_id) |>
     terra::buffer(bandwidth) # takes a lot of time
 
 
-  if (!is.null(env_data)){ # change env_data crs beforehand
-    env_data_proj = terra::project(env_data, terra::crs(x_proj))
-  }
+
 
   # create grid raster
 
-  if (is.numeric(cellsize) & cellsize > 0) { # cellsize included
+  # implement cellsize > 0 condition
+  if (is.numeric(cellsize)) { # cellsize included
 
     if (terra::linearUnits(x_proj) == 0){ # crs units in degrees
 
@@ -61,24 +64,36 @@ LS_exposure = function(x, day=NULL, time_data = NULL, time_unit = "mins",
       x_cells = (dist_lon / cellsize) |> as.integer()
       y_cells = (dist_lat / cellsize) |> as.integer()
 
-      x_seq = seq(extent_buff[1], extent_buff[2], length.out = x_cells)
-      y_seq = seq(extent_buff[3], extent_buff[4], length.out = y_cells)
 
 
-      # params for empty raster
-      len_x <- length(x_seq)
-      len_y <- length(y_seq)
+      ### PROBABLY DOESNT MATTER
+      # x_seq = seq(extent_buff[1], extent_buff[2], length.out = x_cells)
+      # y_seq = seq(extent_buff[3], extent_buff[4], length.out = y_cells)
 
-      # x, y limits
-      x_min = min(x_seq)
-      x_max = max(x_seq)
-      y_min = min(y_seq)
-      y_max = max(y_seq)
+
+      # # params for empty raster
+      # len_x <- length(x_seq)
+      # len_y <- length(y_seq)
+
+      # # x, y limits
+      # x_min = min(x_seq)
+      # x_max = max(x_seq)
+      # y_min = min(y_seq)
+      # y_max = max(y_seq)
+
+      # #grid rast for units in degrees
+      # grid_rast = terra::rast(crs = terra::crs(trajectories), nrows=y_cells,
+      #                         ncols=x_cells, xmin=x_min, xmax=x_max, ymin=y_min,
+      #                         ymax=y_max, vals = 1) # vals of grid with weight 1
+      ### PROBABLY DOESNT MATTER
 
       #grid rast for units in degrees
-      grid_rast = terra::rast(crs = terra::crs(trajectories), nrows=len_y,
-                              ncols=len_x, xmin=x_min, xmax=x_max, ymin=y_min,
-                              ymax=y_max, vals = 1) # vals of grid with weight 1
+      grid_rast = terra::rast(crs = terra::crs(trajectories), nrows=y_cells,
+                              ncols=x_cells, extent = extent_buff,
+                              vals = 1) # vals of grid with weight 1
+
+
+
 
     } else {
       grid_rast = terra::rast(crs = terra::crs(trajectories), extent = terra::ext(traj_buff),

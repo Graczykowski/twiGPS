@@ -24,7 +24,7 @@
 #' @export
 
 
-DR_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
+DR_exposure = function(x, day=NULL, cellsize = NULL, bandwidth = 200, env_data=NULL,
                        normalize = FALSE, data_extent = NULL, # TODO extent
                        start_crs = "WGS84", end_crs=NULL, stats=NULL,
                        act_and_env=FALSE){ # TODO act_and_env
@@ -32,6 +32,10 @@ DR_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL
   buff_const = 0.05 #percent of extent as bbox
 
   x_proj = start_processing(x, day, env_data, data_extent, start_crs, end_crs)
+
+  if (!is.null(env_data)){ # change env_data crs beforehand
+    env_data_proj = terra::project(env_data, terra::crs(x_proj))
+  }
 
 
   # get extent
@@ -46,13 +50,9 @@ DR_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL
                  terra::ymin(extent) - y_const_dr, terra::ymax(extent) + y_const_dr)
 
 
-  if (!is.null(env_data)){ # change env_data crs beforehand
-    env_data_proj = terra::project(env_data, terra::crs(x_proj))
-  }
 
-
-
-  if (is.numeric(cellsize) & cellsize > 0) { # cellsize included
+  # implement cellsize > 0 condition
+  if (is.numeric(cellsize)) { # cellsize included
 
     if (terra::linearUnits(x_proj) == 0){ # crs units in degrees
       dist_lon = geosphere::distm(c(new_extent[1], new_extent[3]), c(new_extent[2], new_extent[3]),
@@ -64,10 +64,17 @@ DR_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL
 
       y_cells = (dist_lat / cellsize) |> as.integer()
 
+      grid_rast = terra::rast(nrows=y_cells, ncols=x_cells, extent = new_extent,
+                              crs = terra::crs(x_proj))
+
+
     } else {
-      grid_rast = terra::rast(crs = terra::crs(x_proj))
-      terra::ext(grid_rast) = new_extent # ext before cellsize to avoid cellsize disproportion
-      terra::res(grid_rast) = cellsize #TODO small cellsize disproportion
+      grid_rast = terra::rast(crs = terra::crs(x_proj), extent = new_extent,
+                              resolution = cellsize)
+      ## Probably doesnt matter
+      # terra::ext(grid_rast) = new_extent # ext before cellsize to avoid cellsize disproportion
+      # terra::res(grid_rast) = cellsize #TODO small cellsize disproportion
+      ##
     }
 
   } else if (!is.null(env_data)){ #if incorrect cellsize and env_data exists
@@ -84,10 +91,10 @@ DR_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL
   coords = terra::geom(x_proj)[,3:4]
 
   # number of cells
-  if (exists("grid_rast")){
-    x_cells = terra::ncol(grid_rast)
-    y_cells = terra::nrow(grid_rast)
-  }
+
+  x_cells = terra::ncol(grid_rast)
+  y_cells = terra::nrow(grid_rast)
+
 
 
   # calculate DR data
@@ -95,18 +102,21 @@ DR_exposure = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL
                       x_res=x_cells, y_res=y_cells, xlim=new_extent[1:2],
                       ylim=new_extent[3:4])
 
+  ### PROBABLY DOESNT MATTER
+  # # creating empty raster to insert KDE values
+  # len_lon = length(dr_data$x_grid)
+  # len_lat = length(dr_data$y_grid)
+  #
+  # lon_min = min(dr_data$x_grid)
+  # lon_max = max(dr_data$x_grid)
+  # lat_min = min(dr_data$y_grid)
+  # lat_max = max(dr_data$y_grid)
+  #
+  # dr_rast = terra::rast(nrows=len_lat, ncols=len_lon, xmin=lon_min, xmax=lon_max,
+  #                       ymin=lat_min, ymax=lat_max, crs = terra::crs(x_proj))
+  ###
 
-  # creating empty raster to insert KDE values
-  len_lon = length(dr_data$x_grid)
-  len_lat = length(dr_data$y_grid)
-
-  lon_min = min(dr_data$x_grid)
-  lon_max = max(dr_data$x_grid)
-  lat_min = min(dr_data$y_grid)
-  lat_max = max(dr_data$y_grid)
-
-  dr_rast = terra::rast(nrows=len_lat, ncols=len_lon, xmin=lon_min, xmax=lon_max,
-                        ymin=lat_min, ymax=lat_max, crs = terra::crs(x_proj))
+  dr_rast = grid_rast
 
   # insert KDE values to raster
   if (normalize == TRUE){
