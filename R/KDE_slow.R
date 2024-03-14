@@ -37,8 +37,42 @@ KDE_slow = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
 
   if (is.numeric(cellsize) & cellsize > 0) { # cellsize included
 
-    grid_rast = terra::rast(crs = terra::crs(x_proj), extent = terra::ext(x_proj),
-                             resolution = cellsize)
+    if (terra::linearUnits(x_proj) == 0){ # crs units in degrees
+      # PUT IT IN SEPERATE FUNCTION
+
+      extent = terra::ext(x_proj)
+      dist_lon = geosphere::distm(c(extent[1], extent[3]), c(extent[2], extent[3]),
+                                  fun = geosphere::distHaversine)
+      dist_lat = geosphere::distm(c(extent[1], extent[3]), c(extent[1], extent[4]),
+                                  fun = geosphere::distHaversine)
+      # number of cells
+      x_cells = (dist_lon / cellsize) |> as.integer()
+      y_cells = (dist_lat / cellsize) |> as.integer()
+
+      ### PROBABLY DOESNT MATTER
+      # x_seq = seq(extent[1], extent[2], length.out = x_cells)
+      # y_seq = seq(extent[3], extent[4], length.out = y_cells)
+      #
+      #
+      # # params for empty raster
+      # len_x <- length(x_seq)
+      # len_y <- length(y_seq)
+      #
+      # # x, y limits
+      # x_min = min(x_seq)
+      # x_max = max(x_seq)
+      # y_min = min(y_seq)
+      # y_max = max(y_seq)
+      ###
+
+      # empty_rast for units in degrees
+      grid_rast = terra::rast(crs = terra::crs(x_proj), nrows=y_cells,
+                              ncols=x_cells, extent = extent)
+
+    } else {
+      grid_rast = terra::rast(crs = terra::crs(x_proj), extent = terra::ext(x_proj),
+                              resolution = cellsize)
+    }
   } else if (!is.null(env_data)){ #if incorrect cellsize and env_data exists
 
     grid_rast = env_data_proj
@@ -60,7 +94,7 @@ KDE_slow = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
   }
 
 
-  spat_kde_rast[spat_kde_rast == 0] = NA
+  spat_kde_rast = terra::subst(spat_kde_rast, from = 0, to = NA) # insert NA
 
 
   spat_kde_rast = terra::rast(spat_kde_rast)
