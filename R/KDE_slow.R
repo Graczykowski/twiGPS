@@ -99,7 +99,6 @@ KDE_slow = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
   spat_kde_rast = terra::subst(spat_kde_rast, from = 0, to = NA) # insert NA
 
 
-  spat_kde_rast = terra::rast(spat_kde_rast)
 
   if (!is.null(env_data)){ # calculate exposure
     env_data_resamp = terra::resample(env_data_proj, spat_kde_rast)
