@@ -83,6 +83,8 @@ KDE_slow = function(x, day=NULL, cellsize=100, bandwidth = 200, env_data=NULL,
 
   spat_kde_rast = SpatialKDE::kde(sf::st_as_sf(x_proj), band_width = bandwidth,
                                   grid = raster::raster(grid_rast)) #cant use terra rast
+
+  spat_kde_rast = terra:vect(spat_kde_rast)
   if (normalize == TRUE){
 
     spat_kde_rast = terra::subst(spat_kde_rast, from = NA, to = 0) # proper range for normalization
