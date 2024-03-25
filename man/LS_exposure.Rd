@@ -6,10 +6,10 @@
 \usage{
 LS_exposure(
   x,
-  day = NULL,
   time_data = NULL,
-  cellsize = 100,
-  buff_dist = 200,
+  time_unit = "mins",
+  cellsize = NULL,
+  bandwidth = 200,
   env_data = NULL,
   data_extent = NULL,
   start_crs = "WGS84",
@@ -19,31 +19,49 @@ LS_exposure(
 )
 }
 \arguments{
-\item{x}{data frame with lon lat coordinate columns}
-
-\item{day}{string in date format compatible with date column in x}
+\item{x}{data frame with lon lat coordinates columns}
 
 \item{time_data}{name of column in x containing POSIXct data class}
 
-\item{cellsize}{size of raster cell in meters}
+\item{time_unit}{character indicating unit of weights of time_data. Ignored if time_data not specified. See difftime()}
 
-\item{buff_dist}{size of buffer im meter}
+\item{cellsize}{positive numeric size of raster cell in meters}
 
-\item{env_data}{SpatRaster object of envirinmental data}
+\item{bandwidth}{positive numeric size of segments in meters}
+
+\item{env_data}{SpatRaster object of environmental data}
 
 \item{data_extent}{TODO}
 
-\item{start_crs}{coordinate system of coordinates in x data frame}
+\item{start_crs}{character or terra crs object specifying coordinate reference system of coordinates in x data frame}
 
-\item{end_crs}{coordinate system of output}
+\item{end_crs}{character or terra crs object of coordinate reference system of output}
 
-\item{stats}{statistics calculated}
-
-\item{act_and_env}{TODO}
+\item{stats}{vector of characters statistics to be calculated. See terra::global. "count", "range" and "area" additionally added.}
 }
 \value{
-list of SpatRaster result and list of statistics
+list of SpatRaster result and data frame of statistics
 }
 \description{
-Based on code from Micheal garber's repository microclim-static-v-dynam
+Line Segment method activity space and environmental exposure. Based on code from Micheal garber's repository microclim-static-v-dynam.
+In order to receive activity space ignore env_data argument.
+}
+\examples{
+
+statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
+
+# activity space
+LS_exposure(x = geolife_sandiego, time_data = dateTime, time_unit = "mins",
+ cellsize = 50, bandwidth = 200, start_crs = "WGS84", end_crs = "EPSG:32611",
+  stats = statistics)
+
+#environmental exposure
+data("landsat_ndvi")
+ndvi_data = terra::rast(landsat_ndvi)
+
+LS_exposure(x = geolife_sandiego, time_data = dateTime, time_unit = "mins",
+ cellsize = 50, bandwidth = 200, env_data = ndvi_data, start_crs = "WGS84",
+ end_crs = "EPSG:32611", stats = statistics)
+
+
 }

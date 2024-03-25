@@ -6,8 +6,7 @@
 \usage{
 DR_exposure(
   x,
-  day = NULL,
-  cellsize = 100,
+  cellsize = NULL,
   bandwidth = 200,
   env_data = NULL,
   normalize = FALSE,
@@ -19,31 +18,45 @@ DR_exposure(
 )
 }
 \arguments{
-\item{x}{data frame with lon lat coordinate columns}
+\item{x}{data frame with lon lat coordinates columns}
 
-\item{day}{string in date format compatible with date column in x}
+\item{cellsize}{positive numeric size of raster cell in meters}
 
-\item{cellsize}{size of raster cell in meters}
+\item{bandwidth}{positive numeric bandwidth in units of x}
 
-\item{bandwidth}{bandwidth in units of x}
+\item{env_data}{SpatRaster object of environmental data}
 
-\item{env_data}{SpatRaster object of envirinmental data}
-
-\item{normalize}{argument if activity data should be normalized to 0-1 values range}
+\item{normalize}{boolean argument if activity data should be normalized to 0-1 values range}
 
 \item{data_extent}{TODO}
 
-\item{start_crs}{coordinate system of coordinates in x data frame}
+\item{start_crs}{character or terra crs object specifying coordinate reference system of coordinates in x data frame}
 
-\item{end_crs}{coordinate system of output}
+\item{end_crs}{character or terra crs object of coordinate reference system of output}
 
-\item{stats}{statistics calculated}
-
-\item{act_and_env}{TODO}
+\item{stats}{vector of characters statistics to be calculated. See terra::global. "count", "range" and "area" additionally added.}
 }
 \value{
-list of SpatRaster result and list of statistics
+list of SpatRaster result and data frame of statistics
 }
 \description{
-Using modifed DR function from Yen-Chi Chen's repository density_ranking, bandwidth as smoothing parameter still to check
+Density Ranking method activity space and environmental exposure. Using modifed DR function from Yen-Chi Chen's repository density_ranking.
+Bandwidth is a smoothing parameter same as h in TDA::kde(). In order to receive activity space ignore env_data argument.
+}
+\examples{
+
+statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
+
+# activity space
+DR_exposure(x = geolife_sandiego, cellsize = 50, bandwidth = 70,
+ start_crs = "WGS84", end_crs = "EPSG:32611", stats = statistics)
+
+#environmental exposure
+data("landsat_ndvi")
+ndvi_data = terra::rast(landsat_ndvi)
+
+DR_exposure(x = geolife_sandiego, cellsize = 50, bandwidth = 70,
+ env_data = ndvi_data, start_crs = "WGS84",
+ end_crs = "EPSG:32611", stats = statistics)
+
 }
