@@ -21,6 +21,8 @@
 #'
 #' statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
 #'
+#' data("geolife_sandiego")
+#'
 #' # activity space
 #' KDE_slow(x = geolife_sandiego, cellsize = 50, bandwidth = 200,
 #'  start_crs = "WGS84", end_crs = "EPSG:32611", stats = statistics)

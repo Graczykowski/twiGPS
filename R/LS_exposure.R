@@ -21,6 +21,8 @@
 #'
 #' statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
 #'
+#' data("geolife_sandiego")
+#'
 #' # activity space
 #' LS_exposure(x = geolife_sandiego, time_data = dateTime, time_unit = "mins",
 #'  cellsize = 50, bandwidth = 200, start_crs = "WGS84", end_crs = "EPSG:32611",
