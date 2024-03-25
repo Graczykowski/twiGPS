@@ -1,33 +1,47 @@
-#' Kernel Density Estimation in Projected Coordinate Systems
+#' Kernel Density Estimation exposure (TDA)
 #' @description
-#' Code working fast with smoothing parameter as bandwidth still to check
+#' Kernel Density Estimation method activity space and environmental exposure. Using kde() function from TDA package.
+#' Bandwidth is a smoothing parameter same as h in TDA::kde(). In order to receive activity space ignore env_data argument.
 #'
-#' @param x data frame with lon lat coordinate columns
-#' @param day string in date format compatible with date column in x
-#' @param cellsize size of raster cell in meters
-#' @param bandwidth bandwidth in unit of x (if in degrees working as bandwidth in DR)
-#' @param env_data SpatRaster object of envirinmental data
-#' @param normalize argument if activity data should be normalized to 0-1 values range
+#' @param x data frame with lon lat coordinates columns
+#' @param cellsize positive numeric size of raster cell in meters
+#' @param bandwidth positive numeric bandwidth in units of x
+#' @param env_data SpatRaster object of environmental data
+#' @param normalize boolean argument if activity data should be normalized to 0-1 values range
 #' @param data_extent TODO
-#' @param start_crs coordinate system of coordinates in x data frame
-#' @param end_crs coordinate system of output
-#' @param stats statistics calculated
-#' @param act_and_env TODO
+#' @param start_crs character or terra crs object specifying coordinate reference system of coordinates in x data frame
+#' @param end_crs character or terra crs object of coordinate reference system of output
+#' @param stats vector of characters statistics to be calculated. See terra::global. "count", "range" and "area" additionally added.
 #'
-#' @return list of SpatRaster result and list of statistics
+#' @return list of SpatRaster result and data frame of statistics
 #'
+#' @examples
+#'
+#' statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
+#'
+#' # activity space
+#' KDE_exposure(x = geolife_sandiego, cellsize = 50, bandwidth = 25,
+#'  start_crs = "WGS84", end_crs = "EPSG:32611", stats = statistics)
+#'
+#' #environmental exposure
+#' data("landsat_ndvi")
+#' ndvi_data = terra::rast(landsat_ndvi)
+#'
+#' KDE_exposure(x = geolife_sandiego, cellsize = 50, bandwidth = 25,
+#'  env_data = ndvi_data, start_crs = "WGS84",
+#'  end_crs = "EPSG:32611", stats = statistics)
 #'
 #'
 #'
 #' @export
-KDE_exposure = function(x, day=NULL, cellsize=NULL, bandwidth = 200, env_data=NULL,
+KDE_exposure = function(x, cellsize=NULL, bandwidth = 200, env_data=NULL,
                     normalize = FALSE, data_extent = NULL, # TODO extent
                     start_crs = "WGS84", end_crs=NULL, stats=NULL,
                     act_and_env=FALSE){ # TODO act_and_env
 
   buff_const = 0.05 #percent of extent as bbox
 
-  x_proj = start_processing(x, day, env_data, data_extent, start_crs, end_crs)
+  x_proj = start_processing(x,  env_data, data_extent, start_crs, end_crs)
 
   if (!is.null(env_data)){ # change env_data crs beforehand
     env_data_proj = terra::project(env_data, terra::crs(x_proj))
@@ -122,18 +136,19 @@ KDE_exposure = function(x, day=NULL, cellsize=NULL, bandwidth = 200, env_data=NU
   #                 ymax=y_max, crs = terra::crs(x_proj))
   ###
 
-  kde_rast = grid_rast
 
+  kde_rast = grid_rast
+  # insert kde values to raster
+  terra::values(kde_rast) = kde_data
 
   if (normalize == TRUE){ # normalize kde values
-    kde_vals = BBmisc::normalize(as.vector(kde_data), method = "range", range = c(0, 1),
-                                 margin = 1L, on.constant = "quiet")
-  } else {
-    kde_vals = kde_data
+
+    rast_minmax = terra::minmax(kde_rast) # minmax
+    # calculate normalization to 0-1 range
+    kde_rast = (kde_rast - rast_minmax[1,])/(rast_minmax[2,]-rast_minmax[1,])
   }
 
-  # insert kde values to raster
-  terra::values(kde_rast) = kde_vals
+
   kde_rast = terra::subst(kde_rast, from = 0, to = NA)
   kde_rast = terra::flip(kde_rast, direction='vertical') # flip raster
 
@@ -152,7 +167,7 @@ KDE_exposure = function(x, day=NULL, cellsize=NULL, bandwidth = 200, env_data=NU
 
 
     # calculate env output
-    output = output_calc(kde_rast, env_rast = kde_env_rast, stats = stats)
+    output = output_calc(kde_env_rast, stats = stats)
   } else {
     # calculate activity output
     output = output_calc(kde_rast, stats = stats)

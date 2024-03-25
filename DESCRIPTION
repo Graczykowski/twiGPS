@@ -1,10 +1,15 @@
 Package: twsagps
 Title: TWSA in GPS health data
-Version: 0.0.1.2
+Version: 0.0.1.3
 Authors@R: 
     person("Igor", "Graczykowski", , "igor.graczykowski@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: TWSA methods (Point Overlay, Kernel Density Estimation, Density Ranking, Line Segment) in GPS health data.
+Description: TWSA methods (Point Overlay, Kernel Density Estimation,
+    Density Ranking, Line Segment) in GPS health data.
+    Sample data - geolife_sandiego (sample data from
+    Geolife GPS Trajectories 1.3 Data for San Diego county).
+    Environmental data - landsat_ndvi (NDVI calculated from 
+    Landsat 9 image for San Diego county captured on 22nd Februrary 2024).
 License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
     license
 Encoding: UTF-8
@@ -19,9 +24,11 @@ Imports:
   geosphere,
   TDA,
   RANN,
-  BBmisc,
   tidyr,
   tidyterra,
   stats
 URL: https://github.com/Graczykowski/twsagps
 BugReports: https://github.com/Graczykowski/twsagps/issues
+Depends: 
+    R (>= 2.10)
+LazyData: true

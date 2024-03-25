@@ -1,18 +1,14 @@
 
 # handling crs and selecting days from data
 
-start_processing = function(x, day=NULL, env_data = NULL, data_extent = NULL,
+start_processing = function(x, env_data = NULL, data_extent = NULL,
                             start_crs = "WGS84", end_crs = NULL){
 
   # get spatial data
-  if(is.null(day)){
-    x_points = terra::vect(x = x, geom = c("lon", "lat"), crs = start_crs)
-  }
-  else{
-    x_points = x |> dplyr::filter(wearDate == day) |>
-      terra::vect(geom = c("lon", "lat"), crs = start_crs)
 
-  }
+  x_points = terra::vect(x = x, geom = c("lon", "lat"), crs = start_crs)
+
+
 
   #clip to extent TODO
 
@@ -33,62 +29,39 @@ start_processing = function(x, day=NULL, env_data = NULL, data_extent = NULL,
 #raster statistics
 
 rast_stats = function(raster, stats){
-  vals = c()
+  vals = data.frame(matrix(ncol = length(stats)))
+  colnames(vals) = stats
   for (statistic in stats){
-    # TODO range outputs 2 values and it moves names of stats output
     if (statistic == "range"){
       range = terra::global(raster, fun = statistic, na.rm = TRUE)
-      vals = append(vals, range[,2] - range[,1])
+      value = range[,2] - range[,1]
     } else if (statistic == "count"){
-      count = raster |> terra::freq() |> dplyr::summarise(n = sum(count)) |>
+      value = raster |> terra::freq() |> dplyr::summarise(n = sum(count)) |>
         as.integer()
-      vals = append(vals, count)
     } else if (statistic == "area") {
-      area = raster |> terra::expanse() |> dplyr::select(area) |> as.integer()
-      vals = append(vals, area)
+      value = raster |> terra::expanse() |> dplyr::select(area) |> as.integer()
     } else {
-      vals = append(vals, terra::global(raster, fun = statistic, na.rm = TRUE))
+      value = terra::global(raster, fun = statistic, na.rm = TRUE) |> as.numeric()
     }
-
+    vals[statistic] = value
 
   }
-
-  data = as.data.frame(t(vals))
-  colnames(data) = stats
-  return(data)
-
+  return(vals)
 }
 
 
 # Output raster and statistics calculation
 
-output_calc = function(act_rast, env_rast = NULL, stats = NULL,
-                       act_and_env = FALSE){ # TODO act_and_env
+output_calc = function(rast, stats = NULL){
 
   output = list()
+  output$rast = rast
 
-  if (is.null(env_rast)){
-
-    output$rast = act_rast
-
-    if (!is.null(stats)){ # activity stats
-
-      activity_stats = rast_stats(act_rast, stats)
-      output$stats = activity_stats
-    }
-  } else{
-
-    output$rast = env_rast
-
-    if (!is.null(stats)){ # env stats
-
-      env_stats = rast_stats(env_rast, stats)
-      output$stats = env_stats
-    }
+  if (!is.null(stats)){ # activity stats
+    raster_stats = rast_stats(rast, stats)
+    output$stats = raster_stats
   }
-
   return(output)
-
 }
 
 #Line segment trajectories

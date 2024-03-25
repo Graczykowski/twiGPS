@@ -1,18 +1,35 @@
 #' Point Overlay exposure
 #'
+#' @description
+#' Point Overlay method activity space and environmental exposure. In order to receive activity space ignore env_data argument.
 #'
-#' @param x data frame with lon lat coordinate columns
-#' @param day string in date format compatible with date column in x
-#' @param cellsize size of raster cell in meters
-#' @param env_data SpatRaster object of envirinmental data
-#' @param normalize argument if activity data should be normalized to 0-1 values range
+#'
+#' @param x data frame with lon lat coordinates columns
+#' @param cellsize positive numeric size of raster cell in meters
+#' @param env_data SpatRaster object of environmental data
+#' @param normalize boolean argument if activity data should be normalized to 0-1 values range
 #' @param data_extent TODO
-#' @param start_crs coordinate system of coordinates in x data frame
-#' @param end_crs coordinate system of output
-#' @param stats statistics calculated
-#' @param act_and_env TODO
+#' @param start_crs character or terra crs object specifying coordinate reference system of coordinates in x data frame
+#' @param end_crs character or terra crs object of coordinate reference system of output
+#' @param stats vector of characters statistics to be calculated. See terra::global. "count", "range" and "area" additionally added.
 #'
-#' @return list of SpatRaster result and list of statistics
+#' @return list of SpatRaster result and data frame of statistics
+#'
+#' @examples
+#'
+#' statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
+#'
+#' # activity space
+#' PO_exposure(x = geolife_sandiego, cellsize = 50, normalize = TRUE,
+#'  start_crs = "WGS84", end_crs = "EPSG:32611", stats = statistics)
+#'
+#' #environmental exposure
+#' data("landsat_ndvi")
+#' ndvi_data = terra::rast(landsat_ndvi)
+#'
+#' PO_exposure(x = geolife_sandiego, cellsize = 50, env_data = ndvi_data,
+#'  normalize = TRUE, start_crs = "WGS84", end_crs = "EPSG:32611",
+#'  stats = statistics)
 #'
 #'
 #'
@@ -20,13 +37,13 @@
 #' @export
 
 
-PO_exposure = function(x, day=NULL, cellsize=NULL, env_data=NULL, normalize = FALSE,
+PO_exposure = function(x, cellsize=NULL, env_data=NULL, normalize = FALSE,
                        data_extent = NULL, # TODO extent
                        start_crs = "WGS84", end_crs=NULL, stats=NULL,
                        act_and_env=FALSE){ # TODO act_and_env
 
 
-  x_proj = start_processing(x, day, env_data, data_extent, start_crs, end_crs)
+  x_proj = start_processing(x, env_data, data_extent, start_crs, end_crs)
 
   if (!is.null(env_data)){ # change env_data crs beforehand
     env_data_proj = terra::project(env_data, terra::crs(x_proj))
@@ -79,13 +96,12 @@ PO_exposure = function(x, day=NULL, cellsize=NULL, env_data=NULL, normalize = FA
                                resolution = cellsize)
     }
 
-    # rasterize points to created raster
 
 
   } else if (!is.null(env_data)){ #if incorrect cellsize and env_data exists
 
     grid_rast = env_data_proj
-    terra::ext(rast_points) = terra::ext(x_proj)
+    terra::ext(grid_rast) = terra::ext(x_proj)
 
   }
 
@@ -116,7 +132,7 @@ PO_exposure = function(x, day=NULL, cellsize=NULL, env_data=NULL, normalize = FA
 
 
     # calculate env output
-    output = output_calc(rast_points, env_rast = rast_env_points, stats = stats)
+    output = output_calc(rast_env_points, stats = stats)
   } else {
     # calculate activity output
     output = output_calc(rast_points, stats = stats)
