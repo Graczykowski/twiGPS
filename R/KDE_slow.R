@@ -21,15 +21,14 @@
 #'
 #' statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
 #'
-#' data("geolife_sandiego")
 #'
 #' # activity space
 #' KDE_slow(x = geolife_sandiego, cellsize = 50, bandwidth = 200,
 #'  start_crs = "WGS84", end_crs = "EPSG:32611", stats = statistics)
 #'
 #' #environmental exposure
-#' data("landsat_ndvi")
-#' ndvi_data = terra::rast(landsat_ndvi)
+#'
+#' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
 #'
 #' KDE_exposure(x = geolife_sandiego, cellsize = 50, bandwidth = 200,
 #'  env_data = ndvi_data, start_crs = "WGS84",
