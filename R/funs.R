@@ -2,11 +2,11 @@
 # handling crs and selecting days from data
 
 start_processing = function(x, env_data = NULL, data_extent = NULL,
-                            start_crs = "WGS84", end_crs = NULL){
+                            input_crs = "WGS84", output_crs = NULL){
 
   # get spatial data
 
-  x_points = terra::vect(x = x, geom = c("lon", "lat"), crs = start_crs)
+  x_points = terra::vect(x = x, geom = c("lon", "lat"), crs = input_crs)
 
 
 
@@ -14,9 +14,11 @@ start_processing = function(x, env_data = NULL, data_extent = NULL,
 
 
   # crs
-  if (!is.null(end_crs)){
-    x_proj = terra::project(x_points, terra::crs(end_crs))
+  if (!is.null(output_crs)){
+    message("Projecting data to output_crs")
+    x_proj = terra::project(x_points, terra::crs(output_crs))
   } else if (!is.null(env_data)) {
+    message("Projecting data to environmental data crs")
     x_proj = terra::project(x_points, terra::crs(env_data))
   } else {
     x_proj = x_points
@@ -67,6 +69,10 @@ output_calc = function(rast, stats = NULL){
 #Line segment trajectories
 
 trajectories_fun = function(data){
+
+  t_name = c(names(data))[grepl('time', c(names(data)))]
+  lst_name = paste(t_name[which.max(nchar(t_name))], "_1", sep = "")
+
   trajectories_out = data |>
     sf::st_as_sf() |> # change to sf object to change points to linestring later
     #filter to the study id defined by the argument
@@ -87,7 +93,7 @@ trajectories_fun = function(data){
       # select variables to pivot longer.
       cols = c(x_start, y_start, x_end, y_end),
       #value goes to "x/y", and time goes to "_start/end"
-      names_to = c(".value", "time"),
+      names_to = c(".value", lst_name),
       names_repair = "unique",
       names_sep = "_"#the separator for the column name
     ) |>
@@ -100,6 +106,7 @@ trajectories_fun = function(data){
     sf::st_cast("LINESTRING") |> # cast linestring type
     sf::st_as_sf() |>
     dplyr::ungroup()
+
   return(trajectories_out)
 }
 

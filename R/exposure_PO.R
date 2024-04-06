@@ -5,12 +5,12 @@
 #'
 #'
 #' @param x data frame with lon lat coordinates columns
-#' @param cellsize positive numeric size of raster cell in meters
+#' @param cellsize positive numeric size of raster cells in meters
 #' @param env_data SpatRaster object of environmental data
-#' @param normalize boolean argument if activity data should be normalized to 0-1 values range
+#' @param scale_01 boolean argument if activity data should be rescaled to 0-1 values range
 #' @param data_extent TODO
-#' @param start_crs character or terra crs object specifying coordinate reference system of coordinates in x data frame
-#' @param end_crs character or terra crs object of coordinate reference system of output
+#' @param input_crs character or terra crs object specifying coordinate reference system of coordinates in x data frame
+#' @param output_crs character or terra crs object of coordinate reference system of output
 #' @param stats vector of characters statistics to be calculated. See terra::global. "count", "range" and "area" additionally added.
 #'
 #' @return list of SpatRaster result and data frame of statistics
@@ -21,15 +21,15 @@
 #'
 #'
 #' # activity space
-#' PO_exposure(x = geolife_sandiego, cellsize = 50, normalize = TRUE,
-#'  start_crs = "WGS84", end_crs = "EPSG:32611", stats = statistics)
+#' exposure_PO(x = geolife_sandiego, cellsize = 50, scale_01 = TRUE,
+#'  input_crs = "EPSG:4326", output_crs = "EPSG:32611", stats = statistics)
 #'
 #' #environmental exposure
 #'
 #' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
 #'
-#' PO_exposure(x = geolife_sandiego, cellsize = 50, env_data = ndvi_data,
-#'  normalize = TRUE, start_crs = "WGS84", end_crs = "EPSG:32611",
+#' exposure_PO(x = geolife_sandiego, cellsize = 50, env_data = ndvi_data,
+#'  scale_01 = TRUE, input_crs = "EPSG:4326", output_crs = "EPSG:32611",
 #'  stats = statistics)
 #'
 #'
@@ -38,30 +38,24 @@
 #' @export
 
 
-PO_exposure = function(x, cellsize=NULL, env_data=NULL, normalize = FALSE,
+exposure_PO = function(x, cellsize=NULL, env_data=NULL, scale_01 = FALSE,
                        data_extent = NULL, # TODO extent
-                       start_crs = "WGS84", end_crs=NULL, stats=NULL,
-                       act_and_env=FALSE){ # TODO act_and_env
+                       input_crs = "EPSG:4326", output_crs=NULL, stats=NULL){
 
 
-  x_proj = start_processing(x, env_data, data_extent, start_crs, end_crs)
+  x_proj = start_processing(x, env_data, data_extent, input_crs, output_crs)
 
   if (!is.null(env_data)){ # change env_data crs beforehand
     env_data_proj = terra::project(env_data, terra::crs(x_proj))
   }
 
-  # rasterize
-
-  x_proj$rast = 1
-
-
-
-
   # implement cellsize > 0 condition
   if (is.numeric(cellsize)) { # cellsize included
 
-    if (terra::linearUnits(x_proj) == 0){ # crs units in degrees
+    if (terra::is.lonlat(x_proj)){ # crs units in degrees
       # PUT IT IN SEPERATE FUNCTION
+      warning("Cellsize is not stable - cells are not rectangular")
+
 
       extent = terra::ext(x_proj)
       dist_lon = geosphere::distm(c(extent[1], extent[3]), c(extent[2], extent[3]),
@@ -106,15 +100,15 @@ PO_exposure = function(x, cellsize=NULL, env_data=NULL, normalize = FALSE,
 
   }
 
-  rast_points = terra::rasterize(x_proj, grid_rast, field = "rast", fun = sum)
+  rast_points = terra::rasterize(x_proj, grid_rast,  fun = "length")
 
-  if (normalize == TRUE){
+  if (scale_01 == TRUE){
 
-    rast_points = terra::subst(rast_points, from = NA, to = 0) # proper range for normalization
-    rast_minmax = terra::minmax(rast_points) # minmax
+    # rast_points = terra::subst(rast_points, from = NA, to = 0) # proper range for normalization
+    rast_max = terra::max(rast_points)[2,] # minmax
     # calculate normalization to 0-1 range
-    rast_points = (rast_points - rast_minmax[1,])/(rast_minmax[2,]-rast_minmax[1,])
-    rast_points = terra::subst(rast_points, from = 0, to = NA) # insert NA
+    rast_points = (rast_points)/(rast_max)
+    # rast_points = terra::subst(rast_points, from = 0, to = NA) # insert NA
 
   }
 

@@ -5,13 +5,13 @@
 #' Bandwidth is a smoothing parameter same as h in TDA::kde(). In order to receive activity space ignore env_data argument.
 #'
 #' @param x data frame with lon lat coordinates columns
-#' @param cellsize positive numeric size of raster cell in meters
+#' @param cellsize positive numeric size of raster cells in meters
 #' @param bandwidth positive numeric bandwidth in units of x
 #' @param env_data SpatRaster object of environmental data
-#' @param normalize boolean argument if activity data should be normalized to 0-1 values range
+#' @param scale_01 boolean argument if activity data should be rescaled to 0-1 values range
 #' @param data_extent TODO
-#' @param start_crs character or terra crs object specifying coordinate reference system of coordinates in x data frame
-#' @param end_crs character or terra crs object of coordinate reference system of output
+#' @param input_crs character or terra crs object specifying coordinate reference system of coordinates in x data frame
+#' @param output_crs character or terra crs object of coordinate reference system of output
 #' @param stats vector of characters statistics to be calculated. See terra::global. "count", "range" and "area" additionally added.
 #'
 #'
@@ -23,27 +23,27 @@
 #'
 #'
 #' # activity space
-#' DR_exposure(x = geolife_sandiego, cellsize = 50, bandwidth = 70,
-#'  start_crs = "WGS84", end_crs = "EPSG:32611", stats = statistics)
+#' exposure_DR(x = geolife_sandiego, cellsize = 50, bandwidth = 70,
+#'  scale_01 = TRUE, input_crs = "EPSG:4326", output_crs = "EPSG:32611",
+#'  stats = statistics)
 #'
 #' #environmental exposure
 #' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
 #'
-#' DR_exposure(x = geolife_sandiego, cellsize = 50, bandwidth = 70,
-#'  env_data = ndvi_data, start_crs = "WGS84",
-#'  end_crs = "EPSG:32611", stats = statistics)
+#' exposure_DR(x = geolife_sandiego, cellsize = 50, bandwidth = 70,
+#'  env_data = ndvi_data, scale_01 = TRUE, input_crs = "EPSG:4326",
+#'  output_crs = "EPSG:32611", stats = statistics)
 #'
 #' @export
 
 
-DR_exposure = function(x, cellsize = NULL, bandwidth = 200, env_data=NULL,
-                       normalize = FALSE, data_extent = NULL, # TODO extent
-                       start_crs = "WGS84", end_crs=NULL, stats=NULL,
-                       act_and_env=FALSE){ # TODO act_and_env
+exposure_DR = function(x, cellsize = NULL, bandwidth = 200, env_data=NULL,
+                       scale_01 = FALSE, data_extent = NULL, # TODO extent
+                       input_crs = "EPSG:4326", output_crs=NULL, stats=NULL){
 
   buff_const = 0.05 #percent of extent as bbox
 
-  x_proj = start_processing(x, env_data, data_extent, start_crs, end_crs)
+  x_proj = start_processing(x, env_data, data_extent, input_crs, output_crs)
 
   if (!is.null(env_data)){ # change env_data crs beforehand
     env_data_proj = terra::project(env_data, terra::crs(x_proj))
@@ -54,8 +54,8 @@ DR_exposure = function(x, cellsize = NULL, bandwidth = 200, env_data=NULL,
   extent = terra::ext(x_proj)
 
   # buffer around extent
-  x_const_dr = (terra::xmax(extent) - terra::xmin(extent)) * buff_const
-  y_const_dr = (terra::ymax(extent) - terra::ymin(extent)) * buff_const
+  x_const_dr = abs(terra::xmax(extent) - terra::xmin(extent)) * buff_const
+  y_const_dr = abs(terra::ymax(extent) - terra::ymin(extent)) * buff_const
 
   # new extent
   new_extent = c(terra::xmin(extent) - x_const_dr, terra::xmax(extent) + x_const_dr,
@@ -66,7 +66,9 @@ DR_exposure = function(x, cellsize = NULL, bandwidth = 200, env_data=NULL,
   # implement cellsize > 0 condition
   if (is.numeric(cellsize)) { # cellsize included
 
-    if (terra::linearUnits(x_proj) == 0){ # crs units in degrees
+    if (terra::is.lonlat(x_proj)){ # crs units in degrees
+      warning("Cellsize is not stable - cells are not rectangular")
+
       dist_lon = geosphere::distm(c(new_extent[1], new_extent[3]), c(new_extent[2], new_extent[3]),
                                   fun = geosphere::distHaversine)
       dist_lat = geosphere::distm(c(new_extent[1], new_extent[3]), c(new_extent[1], new_extent[4]),
@@ -100,7 +102,7 @@ DR_exposure = function(x, cellsize = NULL, bandwidth = 200, env_data=NULL,
 
 
   # point coords
-  coords = terra::geom(x_proj)[,3:4]
+  coords = terra::crds(x_proj)
 
   # number of cells
 
@@ -133,11 +135,11 @@ DR_exposure = function(x, cellsize = NULL, bandwidth = 200, env_data=NULL,
   # insert dr values to raster
   terra::values(dr_rast) = dr_data$gr_alpha
 
-  if (normalize == TRUE){ # normalize dr values
+  if (scale_01 == TRUE){ # scale_01 dr values
 
-    rast_minmax = terra::minmax(dr_rast) # minmax
+    rast_max = terra::minmax(dr_rast)[2,] # minmax
     # calculate normalization to 0-1 range
-    dr_rast = (dr_rast - rast_minmax[1,])/(rast_minmax[2,]-rast_minmax[1,])
+    dr_rast = (dr_rast)/(rast_max)
   }
 
   dr_rast = terra::subst(dr_rast, from = 0, to = NA)

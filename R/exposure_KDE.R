@@ -4,13 +4,13 @@
 #' Bandwidth is a smoothing parameter same as h in TDA::kde(). In order to receive activity space ignore env_data argument.
 #'
 #' @param x data frame with lon lat coordinates columns
-#' @param cellsize positive numeric size of raster cell in meters
+#' @param cellsize positive numeric size of raster cells in meters
 #' @param bandwidth positive numeric bandwidth in units of x
 #' @param env_data SpatRaster object of environmental data
-#' @param normalize boolean argument if activity data should be normalized to 0-1 values range
+#' @param scale_01 boolean argument if activity data should be rescaled to 0-1 values range
 #' @param data_extent TODO
-#' @param start_crs character or terra crs object specifying coordinate reference system of coordinates in x data frame
-#' @param end_crs character or terra crs object of coordinate reference system of output
+#' @param input_crs character or terra crs object specifying coordinate reference system of coordinates in x data frame
+#' @param output_crs character or terra crs object of coordinate reference system of output
 #' @param stats vector of characters statistics to be calculated. See terra::global. "count", "range" and "area" additionally added.
 #'
 #' @return list of SpatRaster result and data frame of statistics
@@ -21,28 +21,28 @@
 #'
 #'
 #' # activity space
-#' KDE_exposure(x = geolife_sandiego, cellsize = 50, bandwidth = 25,
-#'  start_crs = "WGS84", end_crs = "EPSG:32611", stats = statistics)
+#' exposure_KDE(x = geolife_sandiego, cellsize = 50, bandwidth = 25,
+#'  scale_01 = TRUE, input_crs = "EPSG:4326", output_crs = "EPSG:32611",
+#'  stats = statistics)
 #'
 #' #environmental exposure
 #'
 #' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
 #'
-#' KDE_exposure(x = geolife_sandiego, cellsize = 50, bandwidth = 25,
-#'  env_data = ndvi_data, start_crs = "WGS84",
-#'  end_crs = "EPSG:32611", stats = statistics)
+#' exposure_KDE(x = geolife_sandiego, cellsize = 50, bandwidth = 25,
+#'  env_data = ndvi_data, scale_01 = TRUE, input_crs = "EPSG:4326",
+#'  output_crs = "EPSG:32611", stats = statistics)
 #'
 #'
 #'
 #' @export
-KDE_exposure = function(x, cellsize=NULL, bandwidth = 200, env_data=NULL,
-                    normalize = FALSE, data_extent = NULL, # TODO extent
-                    start_crs = "WGS84", end_crs=NULL, stats=NULL,
-                    act_and_env=FALSE){ # TODO act_and_env
+exposure_KDE = function(x, cellsize=NULL, bandwidth = 200, env_data=NULL,
+                    scale_01 = FALSE, data_extent = NULL, # TODO extent
+                    input_crs = "EPSG:4326", output_crs=NULL, stats=NULL){
 
   buff_const = 0.05 #percent of extent as bbox
 
-  x_proj = start_processing(x,  env_data, data_extent, start_crs, end_crs)
+  x_proj = start_processing(x,  env_data, data_extent, input_crs, output_crs)
 
   if (!is.null(env_data)){ # change env_data crs beforehand
     env_data_proj = terra::project(env_data, terra::crs(x_proj))
@@ -54,8 +54,8 @@ KDE_exposure = function(x, cellsize=NULL, bandwidth = 200, env_data=NULL,
   extent = terra::ext(x_proj)
 
   # buffer around extent
-  x_const_kde = (terra::xmax(extent) - terra::xmin(extent)) * buff_const
-  y_const_kde = (terra::ymax(extent) - terra::ymin(extent)) * buff_const
+  x_const_kde = abs(terra::xmax(extent) - terra::xmin(extent)) * buff_const
+  y_const_kde = abs(terra::ymax(extent) - terra::ymin(extent)) * buff_const
 
   # new extent
   new_extent = c(terra::xmin(extent) - x_const_kde, terra::xmax(extent) + x_const_kde,
@@ -66,7 +66,9 @@ KDE_exposure = function(x, cellsize=NULL, bandwidth = 200, env_data=NULL,
   # implement cellsize > 0 condition
   if (is.numeric(cellsize)) { # cellsize included
 
-    if (terra::linearUnits(x_proj) == 0){ # crs units in degrees
+    if (terra::is.lonlat(x_proj)){ # crs units in degrees
+      warning("Cellsize is not stable - cells are not rectangular")
+
       dist_lon = geosphere::distm(c(new_extent[1], new_extent[3]), c(new_extent[2], new_extent[3]),
                                   fun = geosphere::distHaversine)
       dist_lat = geosphere::distm(c(new_extent[1], new_extent[3]), c(new_extent[1], new_extent[4]),
@@ -95,30 +97,19 @@ KDE_exposure = function(x, cellsize=NULL, bandwidth = 200, env_data=NULL,
     terra::res(grid_rast) = terra::res(env_data_proj)
   }
 
-  # number of cells
-  x_cells = terra::ncol(grid_rast)
-  y_cells = terra::nrow(grid_rast)
-
-
-
-
-  # coordinate seq
-  x_seq = seq(new_extent[1], new_extent[2], length.out = x_cells)
-  y_seq = seq(new_extent[3], new_extent[4], length.out = y_cells)
 
   # coords of every cell
-  expand_grid = expand.grid(x_seq,y_seq)
+  grid_coords = terra::crds(grid_rast)
 
   # point coords
-  coords = terra::geom(x_proj)[,3:4]
-
+  coords = terra::crds(x_proj)
 
   # when in degrees smoothing parameter not sqrt until resolving the output of kde
   if (terra::linearUnits(x_proj) == 0){
-    kde_data = TDA::kde(coords, Grid = expand_grid, h = bandwidth)
+    kde_data = TDA::kde(coords, Grid = grid_coords, h = bandwidth)
   } else {
     # kde with sqrt bandwidth
-    kde_data = TDA::kde(coords, Grid = expand_grid, h = sqrt(bandwidth))
+    kde_data = TDA::kde(coords, Grid = grid_coords, h = sqrt(bandwidth))
   }
 
   ### PROBABLY DOESNT MATTER
@@ -142,11 +133,11 @@ KDE_exposure = function(x, cellsize=NULL, bandwidth = 200, env_data=NULL,
   # insert kde values to raster
   terra::values(kde_rast) = kde_data
 
-  if (normalize == TRUE){ # normalize kde values
+  if (scale_01 == TRUE){ # scale_01 kde values
 
-    rast_minmax = terra::minmax(kde_rast) # minmax
+    rast_max = terra::minmax(kde_rast)[2,] # max
     # calculate normalization to 0-1 range
-    kde_rast = (kde_rast - rast_minmax[1,])/(rast_minmax[2,]-rast_minmax[1,])
+    kde_rast = (kde_rast)/(rast_max)
   }
 
 

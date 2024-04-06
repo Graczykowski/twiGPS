@@ -9,30 +9,29 @@ KDE_slow(
   cellsize = 100,
   bandwidth = 200,
   env_data = NULL,
-  normalize = FALSE,
+  scale_01 = FALSE,
   data_extent = NULL,
-  start_crs = "WGS84",
-  end_crs = NULL,
-  stats = NULL,
-  act_and_env = FALSE
+  input_crs = "EPSG:4326",
+  output_crs = NULL,
+  stats = NULL
 )
 }
 \arguments{
 \item{x}{data frame with lon lat coordinates columns}
 
-\item{cellsize}{positive numeric size of raster cell in meters}
+\item{cellsize}{positive numeric size of raster cells in meters}
 
 \item{bandwidth}{positive numeric bandwidth in meters}
 
 \item{env_data}{SpatRaster object of environmental data}
 
-\item{normalize}{boolean argument if activity data should be normalized to 0-1 values range}
+\item{scale_01}{boolean argument if activity data should be rescaled to 0-1 values range}
 
 \item{data_extent}{TODO}
 
-\item{start_crs}{character or terra crs object specifying coordinate reference system of coordinates in x data frame}
+\item{input_crs}{character or terra crs object specifying coordinate reference system of coordinates in x data frame}
 
-\item{end_crs}{character or terra crs object of coordinate reference system of output}
+\item{output_crs}{character or terra crs object of coordinate reference system of output}
 
 \item{stats}{vector of characters statistics to be calculated. See terra::global. "count", "range" and "area" additionally added.}
 }
@@ -50,15 +49,16 @@ statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
 
 # activity space
 KDE_slow(x = geolife_sandiego, cellsize = 50, bandwidth = 200,
- start_crs = "WGS84", end_crs = "EPSG:32611", stats = statistics)
+ scale_01 = TRUE, input_crs = "EPSG:4326", output_crs = "EPSG:32611",
+ stats = statistics)
 
 #environmental exposure
 
 ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
 
-KDE_exposure(x = geolife_sandiego, cellsize = 50, bandwidth = 200,
- env_data = ndvi_data, start_crs = "WGS84",
- end_crs = "EPSG:32611", stats = statistics)
+KDE_slow(x = geolife_sandiego, cellsize = 50, bandwidth = 200,
+ env_data = ndvi_data, scale_01 = TRUE, input_crs = "EPSG:4326",
+ output_crs = "EPSG:32611", stats = statistics)
 
 
 }

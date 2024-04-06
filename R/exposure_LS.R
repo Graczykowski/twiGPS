@@ -5,12 +5,12 @@
 #' @param x data frame with lon lat coordinates columns
 #' @param time_data name of column in x containing POSIXct data class
 #' @param time_unit character indicating unit of weights of time_data. Ignored if time_data not specified. See difftime()
-#' @param cellsize positive numeric size of raster cell in meters
+#' @param cellsize positive numeric size of raster cells in meters
 #' @param bandwidth positive numeric size of segments in meters
 #' @param env_data SpatRaster object of environmental data
 #' @param data_extent TODO
-#' @param start_crs character or terra crs object specifying coordinate reference system of coordinates in x data frame
-#' @param end_crs character or terra crs object of coordinate reference system of output
+#' @param input_crs character or terra crs object specifying coordinate reference system of coordinates in x data frame
+#' @param output_crs character or terra crs object of coordinate reference system of output
 #' @param stats vector of characters statistics to be calculated. See terra::global. "count", "range" and "area" additionally added.
 #'
 #'
@@ -23,35 +23,34 @@
 #'
 #'
 #' # activity space
-#' LS_exposure(x = geolife_sandiego, time_data = dateTime, time_unit = "mins",
-#'  cellsize = 50, bandwidth = 200, start_crs = "WGS84", end_crs = "EPSG:32611",
+#' exposure_LS(x = geolife_sandiego, time_data = dateTime, time_unit = "mins",
+#'  cellsize = 50, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611",
 #'   stats = statistics)
 #'
 #' #environmental exposure
 #'
 #' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
 #'
-#' LS_exposure(x = geolife_sandiego, time_data = dateTime, time_unit = "mins",
-#'  cellsize = 50, bandwidth = 200, env_data = ndvi_data, start_crs = "WGS84",
-#'  end_crs = "EPSG:32611", stats = statistics)
+#' exposure_LS(x = geolife_sandiego, time_data = dateTime, time_unit = "mins",
+#'  cellsize = 50, bandwidth = 200, env_data = ndvi_data, input_crs = "EPSG:4326",
+#'  output_crs = "EPSG:32611", stats = statistics)
 #'
 #'
 #' @export
 
 
 # TODO optimalise function
-# TODO whend result in WGS84 fix cellsize to fit degrees
-LS_exposure = function(x, time_data = NULL, time_unit = "mins",
+# TODO whend result in EPSG:4326 fix cellsize to fit degrees
+exposure_LS = function(x, time_data = NULL, time_unit = "mins",
                        cellsize=NULL, bandwidth = 200,
                        env_data=NULL, data_extent = NULL, # TODO extent
-                       start_crs = "WGS84", end_crs=NULL, stats=NULL,
-                       act_and_env=FALSE){ # TODO act_and_env
+                       input_crs = "EPSG:4326", output_crs=NULL, stats=NULL){
 
   # processing dplyr argument
     time_data_null = dplyr::enquo(time_data)
 
   # get spatial data with correct crs
-  x_proj = start_processing(x, env_data, data_extent, start_crs, end_crs)
+  x_proj = start_processing(x, env_data, data_extent, input_crs, output_crs)
 
   if (!is.null(env_data)){ # change env_data crs beforehand
     env_data_proj = terra::project(env_data, terra::crs(x_proj))
@@ -59,6 +58,7 @@ LS_exposure = function(x, time_data = NULL, time_unit = "mins",
 
   # create line segments from spatial points
   trajectories = terra::vect(trajectories_fun(x_proj))
+
 
   # create buffers over line segments
   traj_buff = trajectories |>
@@ -75,7 +75,8 @@ LS_exposure = function(x, time_data = NULL, time_unit = "mins",
   # implement cellsize > 0 condition
   if (is.numeric(cellsize)) { # cellsize included
 
-    if (terra::linearUnits(x_proj) == 0){ # crs units in degrees
+    if (terra::is.lonlat(x_proj)){ # crs units in degrees
+      warning("Cellsize is not stable - cells are not rectangular")
 
 
       dist_lon = geosphere::distm(c(extent_buff[1], extent_buff[3]), c(extent_buff[2], extent_buff[3]),
@@ -158,9 +159,9 @@ LS_exposure = function(x, time_data = NULL, time_unit = "mins",
       e=stats::weighted.mean(
         x=e,
         w=weight,
-        na.rm=T),
+        na.rm=TRUE),
       #These weights are based on the areal overlap, not time
-      sum_weights = sum(weight,na.rm=T),
+      sum_weights = sum(weight,na.rm=TRUE),
       n_pixel = dplyr::n() # number of observations corresponds to number of pixels per line segment
     ) |>
     dplyr::ungroup()
@@ -188,7 +189,7 @@ LS_exposure = function(x, time_data = NULL, time_unit = "mins",
   weight_buff = dplyr::inner_join(traj_buff, traj_extract_line_id, by = 'line_id')
 
   # rasterize results
-  rast_segment =terra::rasterize(weight_buff, grid_rast, field = "end_weights", fun = sum)
+  rast_segment =terra::rasterize(weight_buff, grid_rast, field = "end_weights", fun = "sum")
 
   # generate output
   output = output_calc(rast_segment, stats = stats)

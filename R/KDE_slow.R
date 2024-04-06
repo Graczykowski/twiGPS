@@ -6,13 +6,13 @@
 #'
 #'
 #' @param x data frame with lon lat coordinates columns
-#' @param cellsize positive numeric size of raster cell in meters
+#' @param cellsize positive numeric size of raster cells in meters
 #' @param bandwidth positive numeric bandwidth in meters
 #' @param env_data SpatRaster object of environmental data
-#' @param normalize boolean argument if activity data should be normalized to 0-1 values range
+#' @param scale_01 boolean argument if activity data should be rescaled to 0-1 values range
 #' @param data_extent TODO
-#' @param start_crs character or terra crs object specifying coordinate reference system of coordinates in x data frame
-#' @param end_crs character or terra crs object of coordinate reference system of output
+#' @param input_crs character or terra crs object specifying coordinate reference system of coordinates in x data frame
+#' @param output_crs character or terra crs object of coordinate reference system of output
 #' @param stats vector of characters statistics to be calculated. See terra::global. "count", "range" and "area" additionally added.
 #'
 #' @return list of SpatRaster result and data frame of statistics
@@ -24,25 +24,25 @@
 #'
 #' # activity space
 #' KDE_slow(x = geolife_sandiego, cellsize = 50, bandwidth = 200,
-#'  start_crs = "WGS84", end_crs = "EPSG:32611", stats = statistics)
+#'  scale_01 = TRUE, input_crs = "EPSG:4326", output_crs = "EPSG:32611",
+#'  stats = statistics)
 #'
 #' #environmental exposure
 #'
 #' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
 #'
-#' KDE_exposure(x = geolife_sandiego, cellsize = 50, bandwidth = 200,
-#'  env_data = ndvi_data, start_crs = "WGS84",
-#'  end_crs = "EPSG:32611", stats = statistics)
+#' KDE_slow(x = geolife_sandiego, cellsize = 50, bandwidth = 200,
+#'  env_data = ndvi_data, scale_01 = TRUE, input_crs = "EPSG:4326",
+#'  output_crs = "EPSG:32611", stats = statistics)
 #'
 #'
 #' @export
 KDE_slow = function(x, cellsize=100, bandwidth = 200, env_data=NULL,
-                        normalize = FALSE, data_extent = NULL, # TODO extent
-                        start_crs = "WGS84", end_crs=NULL, stats=NULL,
-                        act_and_env=FALSE){ # TODO act_and_env
+                        scale_01 = FALSE, data_extent = NULL, # TODO extent
+                        input_crs = "EPSG:4326", output_crs=NULL, stats=NULL){
 
 
-  x_proj = start_processing(x, env_data, data_extent, start_crs, end_crs)
+  x_proj = start_processing(x, env_data, data_extent, input_crs, output_crs)
 
 
   if (!is.null(env_data)){ # change env_data crs beforehand
@@ -51,8 +51,9 @@ KDE_slow = function(x, cellsize=100, bandwidth = 200, env_data=NULL,
 
   if (is.numeric(cellsize) & cellsize > 0) { # cellsize included
 
-    if (terra::linearUnits(x_proj) == 0){ # crs units in degrees
+    if (terra::is.lonlat(x_proj)){ # crs units in degrees
       # PUT IT IN SEPERATE FUNCTION
+      warning("Cellsize is not stable - cells are not rectangular")
 
       extent = terra::ext(x_proj)
       dist_lon = geosphere::distm(c(extent[1], extent[3]), c(extent[2], extent[3]),
@@ -99,7 +100,7 @@ KDE_slow = function(x, cellsize=100, bandwidth = 200, env_data=NULL,
                                   grid = raster::raster(grid_rast)) #cant use terra rast
 
   spat_kde_rast = terra::rast(spat_kde_rast)
-  if (normalize == TRUE){
+  if (scale_01 == TRUE){
 
     spat_kde_rast = terra::subst(spat_kde_rast, from = NA, to = 0) # proper range for normalization
     rast_minmax = terra::minmax(spat_kde_rast) # minmax
