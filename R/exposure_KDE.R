@@ -1,168 +1,262 @@
-#' Kernel Density Estimation exposure (TDA)
+#' Kernel Density Estimation exposure
 #' @description
-#' Kernel Density Estimation method activity space and environmental exposure. Using kde() function from TDA package.
-#' Bandwidth is a smoothing parameter same as h in TDA::kde(). In order to receive activity space ignore env_data argument.
+#' Kernel Density Estimation method activity space and environmental exposure. Using spat_kde() function based on Silverman, B. W. 1986.
+#' In order to receive activity space ignore env_data argument.
 #'
-#' @param x data frame with lon lat coordinates columns
-#' @param cellsize positive numeric size of raster cells in meters
-#' @param bandwidth positive numeric bandwidth in units of x
-#' @param env_data SpatRaster object of environmental data
-#' @param scale_01 boolean argument if activity data should be rescaled to 0-1 values range
-#' @param data_extent TODO
-#' @param input_crs character or terra crs object specifying coordinate reference system of coordinates in x data frame
-#' @param output_crs character or terra crs object of coordinate reference system of output
-#' @param stats vector of characters statistics to be calculated. See terra::global. "count", "range" and "area" additionally added.
+#' @param data Data.frame, SpatVector points or sf data.frame containing only POINTS.
+#' @param x Data masking. x or lontitude coordinates column if data is a data.frame.
+#' @param y Data masking. y or latitude coordinates column if data is a data.frame.
+#' @param NA_val Numeric. Value in x and y marked as NA if data is a data.frame.
+#' @param cellsize Positive numeric. Size of raster cells in meters if output has a longtitude/latitude CRS or in the units of output CRS.
+#' @param group_split Data masking. Column of data based on which it is grouped and split. For n groups output will be n SpatRasters.
+#' @param bandwidth Positive numeric. Bandwidth in units of output Coordinate Reference System.
+#' @param env_data Stars, SpatRaster, SpatVector or sf. Spatial environmental data. Activity space is calculated when not set. When argument is a SpatVector or sf object vector data is rasterized to output raster using "sum" function.
+#' @param env_field Data masking. Column of env_data that env_data will be rasterized on. Ignored if env_data not a SpatVector or sf class.
+#' @param env_buff Positive numeric. Optional buffer around SpatVector/sf env_data in meters if output has a longtitude/latitude CRS or in the units of the CRS. See terra::buffer(). Ignored if env_data not a SpatVector or sf class.
+#' @param normalize Boolean. If activity data should be normalized.
+#' @param norm_method Character. Normalization method. Four methods - "center", "scale", "standardize" and "range". Default is "range". See BBmisc::normalize().
+#' @param norm_group Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is rescaled seperately. If TRUE SpatRasters are rescaled to SpatRaster with highest max value.
+#' @param grid_extent Stars, SpatRaster, SpatExtent, sf bbox object or numeric vector of 4 length c(xmin, xmax, ymin, ymax). If stars or SpatRaster grid_extent is output's grid and cellsize argument is ignored. If SpatExtent, sf bbox object or vector grid_extent is output's extent. If cellsize is set it is preserved at the cost of extent.
+#' @param input_crs Character or terra crs object. Coordinate Reference System of data's coordinates if data is a data.frame.
+#' @param output_crs Character or terra crs object. Coordinate Reference System of output. If not set and env_data is a SpatRaster env_data's CRS is used.
+#' @param filepath Character. Output filename. See terra::writeRaster().
 #'
-#' @return list of SpatRaster result and data frame of statistics
+#' @return SpatRaster
 #'
 #' @examples
 #'
-#' statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
 #'
 #'
 #' # activity space
-#' exposure_KDE(x = geolife_sandiego, cellsize = 50, bandwidth = 25,
-#'  scale_01 = TRUE, input_crs = "EPSG:4326", output_crs = "EPSG:32611",
-#'  stats = statistics)
+#' exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, bandwidth = 200,
+#'  normalize = TRUE, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+#'
+#' # split by date
+#' exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, group_split = date,
+#'    bandwidth = 200, normalize = TRUE, norm_group = FALSE, input_crs = "EPSG:4326",
+#'    output_crs = "EPSG:32611")
+#'
+#' # split by date and define extent
+#' extent = c(478000, 484000, 3618000, 3627000)
+#'
+#' exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, group_split = date,
+#'   bandwidth = 200, normalize = TRUE,norm_group = TRUE, grid_extent = extent,
+#'   input_crs = "EPSG:4326", output_crs = "EPSG:32611")
 #'
 #' #environmental exposure
 #'
 #' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
 #'
-#' exposure_KDE(x = geolife_sandiego, cellsize = 50, bandwidth = 25,
-#'  env_data = ndvi_data, scale_01 = TRUE, input_crs = "EPSG:4326",
-#'  output_crs = "EPSG:32611", stats = statistics)
+#' exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, bandwidth = 200,
+#'   env_data = ndvi_data, normalize = FALSE, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+#'
+#' # environmental exposure - use rast grid and split by date
+#' exposure_KDE(data = geolife_sandiego, x = lon, y = lat, group_split = date,
+#'   bandwidth = 200, env_data = ndvi_data, normalize = TRUE, norm_group = TRUE,
+#'   grid_extent = ndvi_data, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
 #'
 #'
 #'
 #' @export
-exposure_KDE = function(x, cellsize=NULL, bandwidth = 200, env_data=NULL,
-                    scale_01 = FALSE, data_extent = NULL, # TODO extent
-                    input_crs = "EPSG:4326", output_crs=NULL, stats=NULL){
+exposure_KDE = function(data, x, y, NA_val, cellsize, group_split, bandwidth = 200, env_data,
+                       env_field, env_buff, normalize = FALSE, norm_method = "range",
+                       norm_group = FALSE, grid_extent, input_crs, output_crs, filepath){
 
-  buff_const = 0.05 #percent of extent as bbox
+  # handle stars objects rasters as env_data
+  if (!missing(env_data)) {
+    if (any(class(env_data) == "stars")){
+      env_data = terra::rast(env_data)
+    } else if (any(class(env_data) == "sf")) {
+      env_data = terra::vect(env_data)
+    } else if (any(!class(env_data) %in% c("SpatVector", "SpatRaster"))){
+      stop("Invalid env_data - env_data neither stars, sf, SpatVector nor SpatRaster class")
+    }
+  }
 
-  x_proj = start_processing(x,  env_data, data_extent, input_crs, output_crs)
+  # handle grid_extent
+  if (!missing(grid_extent)){
+    if (any(class(grid_extent) == "stars")){
+      grid_extent = terra::rast(grid_extent)
+    } else if (any(class(grid_extent) == "bbox" || (is.vector(grid_extent) &&
+                                                    all(class(grid_extent) == "numeric") && length(grid_extent) == 4))){
+      grid_extent = terra::ext(grid_extent)
+    } else if (any(!class(grid_extent) %in% c("SpatExtent", "SpatRaster"))){
+      stop("Invalid grid_extent - grid_extent neither stars, SpatRaster, SpatExtent, bbox class nor numeric vector of 4 length")
+    }
+  }
 
-  if (!is.null(env_data)){ # change env_data crs beforehand
-    env_data_proj = terra::project(env_data, terra::crs(x_proj))
+  # handle norm_method
+  if (!norm_method %in% c("center", "scale", "standardize", "range") && normalize == TRUE) {
+    warning('Ivnalid norm_method. Applying default normalization method "range"')
+    norm_method = "range"
+  }
+
+  if (all(class(data) == "data.frame")){
+    if (all(!c(missing(x), missing(y)))){
+      x_enq = rlang::enquo(x)
+      y_enq = rlang::enquo(y)
+
+      data_proj = start_processing(data = data, x = rlang::quo_name(x_enq),
+                                   y = rlang::quo_name(y_enq), NA_val = NA_val,
+                                   env_data = env_data, grid_extent = grid_extent,
+                                   input_crs = input_crs, output_crs = output_crs)
+    } else {
+      stop('Incorrect x and y arguments for data "data.frame" class')
+    }
+  } else {
+    data_proj = start_processing(data = data, env_data = env_data,
+                                 grid_extent = grid_extent, input_crs = input_crs,
+                                 output_crs = output_crs)
+  }
+
+  if (!missing(grid_extent) && any(class(grid_extent) == "SpatRaster")){
+    grid_rast = grid_extent
+  } else {
+    grid_rast = calc_grid(x = data_proj, cellsize = cellsize, env_data = env_data,
+                          grid_extent = grid_extent, bandwidth = bandwidth)
+  }
+
+  # if env_data is vector data - create optional buffer and rasterize to grid raster
+  if (!missing(env_data) && any(class(env_data) == "SpatVector")) {
+
+    env_data = env_vect(env = env_data, env_buff = env_buff,
+                        env_field = env_field, grid = grid_rast)
   }
 
 
 
-  # get extent
-  extent = terra::ext(x_proj)
 
-  # buffer around extent
-  x_const_kde = abs(terra::xmax(extent) - terra::xmin(extent)) * buff_const
-  y_const_kde = abs(terra::ymax(extent) - terra::ymin(extent)) * buff_const
+  if (missing(group_split)) {
+    data_iter = list(data_proj) # only one item for for loop
+  } else {
+    enq_group_split = rlang::enquo(group_split)
+    data_iter = terra::split(data_proj, rlang::quo_name(enq_group_split)) # split data_proj by group_split
+    message(paste0("Data split by group into ", length(data_iter), " items"))
+  }
 
-  # new extent
-  new_extent = c(terra::xmin(extent) - x_const_kde, terra::xmax(extent) + x_const_kde,
-                 terra::ymin(extent) - y_const_kde, terra::ymax(extent) + y_const_kde)
-  #TODO small cellsize disproportion
+  if (length(data_iter) > 1 && !missing(filepath)) {
+    # list output
 
+    # for iterating file names
+    file_ext = stringi::stri_extract(filepath, regex = "\\.(\\w+)$")
+    file_no_ext = substr(filepath, 1, nchar(filepath) - nchar(file_ext))
 
-  # implement cellsize > 0 condition
-  if (is.numeric(cellsize)) { # cellsize included
+    file_vect = rep(file_no_ext, length.out = length(data_iter))
+    file_vect = paste0(file_vect, "_", seq_along(file_vect), file_ext)
+  }
 
-    if (terra::is.lonlat(x_proj)){ # crs units in degrees
-      warning("Cellsize is not stable - cells are not rectangular")
+  act_out = list()
+  output = list()
 
-      dist_lon = geosphere::distm(c(new_extent[1], new_extent[3]), c(new_extent[2], new_extent[3]),
-                                  fun = geosphere::distHaversine)
-      dist_lat = geosphere::distm(c(new_extent[1], new_extent[3]), c(new_extent[1], new_extent[4]),
-                                  fun = geosphere::distHaversine)
+  for (data_i in data_iter){
+    # if each group should have seperate extent then output is a list rasts
+    # if all groups should have same extent then output is rast with n layers
 
-      x_cells = (dist_lon / cellsize) |> as.integer()
+    ### UNCOMMENT IF EVERY RAST SHOULD HAVE SEPERATE EXTENT
 
-      y_cells = (dist_lat / cellsize) |> as.integer()
+    if (missing(grid_extent)) {
+      #new ext for each group
+      # get extent
+      group_extent = terra::ext(data_i)
+      # new extent - expanded extent by bandwidth
+      new_group_extent = c(terra::xmin(group_extent) - bandwidth,
+                           terra::xmax(group_extent) + bandwidth,
+                           terra::ymin(group_extent) - bandwidth,
+                           terra::ymax(group_extent) + bandwidth)
 
-      grid_rast = terra::rast(nrows=y_cells, ncols=x_cells, extent = new_extent,
-                              crs = terra::crs(x_proj))
+      # crop ext of each rast
+      grid_crop = terra::crop(grid_rast, new_group_extent)
 
+      kde_rast = spat_kde(data_i, grid_crop, bandwidth)
     } else {
-      grid_rast = terra::rast(crs = terra::crs(x_proj), extent = new_extent,
-                              resolution = cellsize)
-      ## Probably doesnt matter
-      # terra::ext(grid_rast) = new_extent # ext before cellsize to avoid cellsize disproportion
-      # terra::res(grid_rast) = cellsize #TODO small cellsize disproportion
-      ##
+      kde_rast =  spat_kde(data_i, grid_rast, bandwidth)
     }
 
-  } else if (!is.null(env_data)){ #if incorrect cellsize and env_data exists
+    ### UNCOMMENT IF EVERY RAST SHOULD HAVE SEPERATE EXTENT
 
-    grid_rast = env_data_proj
-    terra::ext(grid_rast) = new_extent # ext before cellsize to avoid cellsize disproportion
-    terra::res(grid_rast) = terra::res(env_data_proj)
+
+    ### UNCOMMENT IF EVERY RAST SHOULD HAVE SAME EXTENT
+
+    #kde_rast = spat_kde(data_i, grid_rast, bandwidth)
+
+    ### UNCOMMENT IF EVERY RAST SHOULD HAVE SAME EXTENT
+
+    if (normalize == TRUE && (norm_group != TRUE || norm_method != "range" || missing(group_split))){
+      if (norm_method == "range") {
+        message('Norm_method is "range". Norm_group argument ignored. Normalizing each group seperately')
+      }
+      # calculate normalization
+      terra::values(kde_rast) = BBmisc::normalize(terra::values(kde_rast),
+                                                  method = norm_method, margin = 2L)
+
+    }
+
+    kde_rast = terra::subst(kde_rast, from = 0, to = NA)
+
+
+    ### UNCOMMENT IF EVERY RAST SHOULD BE A SEPERATE ELEMENT IN LIST
+
+    act_out[length(act_out) + 1] = as.list(kde_rast)
+
+    ### UNCOMMENT IF EVERY RAST SHOULD BE A SEPERATE ELEMENT IN LIST
+
+
+    ### UNCOMMENT IF ALL RAST AS STACK RASTER
+
+    #act_out = append(act_out, kde_rast)
+
+    ### UNCOMMENT IF ALL RAST AS STACK RASTER
+  }
+
+  if (normalize == TRUE && norm_method == "range" && norm_group == TRUE && !missing(group_split)){
+
+    max_val = max(sapply(act_out, terra::minmax)[2,], na.rm = TRUE)
+
+    act_out = sapply(act_out, function(x) {
+      if (!(all(is.na(terra::values(x))))) {
+        terra::values(x) = BBmisc::normalize(terra::values(x), method = "range",
+                                             margin = 2L,
+                                             range = c(0, terra::minmax(x)[2] / max_val))
+      }
+      return(x)
+    })
+  }
+
+  for (out in act_out) {
+    if (!missing(env_data)){ # calculate exposure
+      # project env_data to grid
+      env_data_proj = terra::project(env_data, out)
+      # if same ext for groups out -> grid_rast and this code chunk out of loop
+
+      #env_data_resamp = terra::resample(env_data_proj, out)
+
+      rast_env_kde = out * env_data_proj
+      end_rast = rast_env_kde
+    } else {
+      end_rast = out
+    }
+    if (length(data_iter) == 1) { # if one group or no group output is not a list
+      output = end_rast
+    } else {
+      output[length(output) + 1] = as.list(end_rast)
+    }
   }
 
 
-  # coords of every cell
-  grid_coords = terra::crds(grid_rast)
 
-  # point coords
-  coords = terra::crds(x_proj)
+  if (!missing(filepath)) { # save raster
+    if (length(data_iter) > 1){ # update filepath
 
-  # when in degrees smoothing parameter not sqrt until resolving the output of kde
-  if (terra::linearUnits(x_proj) == 0){
-    kde_data = TDA::kde(coords, Grid = grid_coords, h = bandwidth)
-  } else {
-    # kde with sqrt bandwidth
-    kde_data = TDA::kde(coords, Grid = grid_coords, h = sqrt(bandwidth))
-  }
+      mapply(function(x, y) {
+        terra::writeRaster(x, filename = y)
+        message(paste0("Saving output to ", y))
+      }, x = output, y = file_vect)
 
-  ### PROBABLY DOESNT MATTER
-  # # params for empty raster
-  # len_x <- length(x_seq)
-  # len_y <- length(y_seq)
-  #
-  # # x, y limits
-  # x_min = min(x_seq)
-  # x_max = max(x_seq)
-  # y_min = min(y_seq)
-  # y_max = max(y_seq)
-  #
-  # # empty rast for kde
-  # kde_rast = terra::rast(nrows=len_y, ncols=len_x, xmin=x_min, xmax=x_max, ymin=y_min,
-  #                 ymax=y_max, crs = terra::crs(x_proj))
-  ###
+    } else {
 
-
-  kde_rast = grid_rast
-  # insert kde values to raster
-  terra::values(kde_rast) = kde_data
-
-  if (scale_01 == TRUE){ # scale_01 kde values
-
-    rast_max = terra::minmax(kde_rast)[2,] # max
-    # calculate normalization to 0-1 range
-    kde_rast = (kde_rast)/(rast_max)
-  }
-
-
-  kde_rast = terra::subst(kde_rast, from = 0, to = NA)
-  kde_rast = terra::flip(kde_rast, direction='vertical') # flip raster
-
-
-
-  if (!is.null(env_data)){ # calculate exposure
-    # only for one point data check
-    # env_max = terra::minmax(env_data)[2]
-    # env_data_proj[env_data_proj > env_max] = NA
-    ##
-    env_data_resamp = terra::resample(env_data_proj, kde_rast)
-    ##
-    # env_data_resamp[env_data_resamp > env_max] = NA
-    ##
-    kde_env_rast = kde_rast * env_data_resamp
-
-
-    # calculate env output
-    output = output_calc(kde_env_rast, stats = stats)
-  } else {
-    # calculate activity output
-    output = output_calc(kde_rast, stats = stats)
+      terra::writeRaster(end_rast, filename = filepath)
+      message(paste0("Saving output to ", filepath))
+    }
   }
 
   return(output)

@@ -26,7 +26,9 @@ Imports:
   RANN,
   tidyr,
   tidyterra,
-  stats
+  stats,
+  stringi,
+  BBmisc
 URL: https://github.com/Graczykowski/twsagps
 BugReports: https://github.com/Graczykowski/twsagps/issues
 Depends: 
