@@ -13,7 +13,7 @@ exposure_LS(
   time_unit = "mins",
   cellsize,
   group_split,
-  bandwidth = 200,
+  bandwidth,
   env_data,
   env_field,
   env_buff,
@@ -30,9 +30,9 @@ exposure_LS(
 \arguments{
 \item{data}{Data.frame, SpatVector points or sf data.frame containing only POINTS.}
 
-\item{x}{Data masking. x or lontitude coordinates column if data is a data.frame.}
+\item{x}{Data masking. x or longitude coordinates column name if data is a data.frame.}
 
-\item{y}{Data masking. y or latitude coordinates column if data is a data.frame.}
+\item{y}{Data masking. y or latitude coordinates column name if data is a data.frame.}
 
 \item{NA_val}{Numeric. Value in x and y marked as NA if data is a data.frame.}
 
@@ -44,7 +44,7 @@ exposure_LS(
 
 \item{group_split}{Data masking. Column of data based on which it is grouped and split. For n groups output will be n SpatRasters.}
 
-\item{bandwidth}{Positive numeric. Bandwidth in units of output Coordinate Reference System.}
+\item{bandwidth}{Positive numeric. Bandwidth in meters if output has a longtitude/latitude CRS or in the units of output CRS.}
 
 \item{env_data}{Stars, SpatRaster, SpatVector or sf. Spatial environmental data. Activity space is calculated when not set. When argument is a SpatVector or sf object vector data is rasterized to output raster using "sum" function.}
 
@@ -52,11 +52,11 @@ exposure_LS(
 
 \item{env_buff}{Positive numeric. Optional buffer around SpatVector/sf env_data in meters if output has a longtitude/latitude CRS or in the units of the CRS. See terra::buffer(). Ignored if env_data not a SpatVector or sf class.}
 
-\item{normalize}{Boolean. If activity data should be normalized.}
+\item{normalize}{Boolean. If TRUE activity space SpatRaster is normalized}
 
 \item{norm_method}{Character. Normalization method. Four methods - "center", "scale", "standardize" and "range". Default is "range". See BBmisc::normalize().}
 
-\item{norm_group}{Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is rescaled seperately. If TRUE SpatRasters are rescaled to SpatRaster with highest max value.}
+\item{norm_group}{Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is normalized seperately. If TRUE SpatRasters are normalized to SpatRaster with highest max value.}
 
 \item{time_only_norm}{Boolean. Time type of normalization. If TRUE only time_data is normalized, normalized raster values may be imprecise. If FALSE and norm_method is "range" normalization is conducted with regard to spatial distribution, normalized raster values are accurate. TEMPORARY}
 

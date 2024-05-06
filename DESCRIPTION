@@ -1,6 +1,6 @@
 Package: twsagps
 Title: TWSA in GPS health data
-Version: 0.0.1.3
+Version: 0.0.9
 Authors@R: 
     person("Igor", "Graczykowski", , "igor.graczykowski@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
@@ -28,7 +28,8 @@ Imports:
   tidyterra,
   stats,
   stringi,
-  BBmisc
+  BBmisc,
+  exactextractr
 URL: https://github.com/Graczykowski/twsagps
 BugReports: https://github.com/Graczykowski/twsagps/issues
 Depends: 

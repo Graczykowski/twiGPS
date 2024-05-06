@@ -4,8 +4,8 @@
 #' In order to receive activity space ignore env_data argument.
 #'
 #' @param data Data.frame, SpatVector points or sf data.frame containing only POINTS.
-#' @param x Data masking. x or lontitude coordinates column if data is a data.frame.
-#' @param y Data masking. y or latitude coordinates column if data is a data.frame.
+#' @param x Data masking. x or longitude coordinates column name if data is a data.frame.
+#' @param y Data masking. y or latitude coordinates column name if data is a data.frame.
 #' @param NA_val Numeric. Value in x and y marked as NA if data is a data.frame.
 #' @param cellsize Positive numeric. Size of raster cells in meters if output has a longtitude/latitude CRS or in the units of output CRS.
 #' @param group_split Data masking. Column of data based on which it is grouped and split. For n groups output will be n SpatRasters.
@@ -13,9 +13,9 @@
 #' @param env_data Stars, SpatRaster, SpatVector or sf. Spatial environmental data. Activity space is calculated when not set. When argument is a SpatVector or sf object vector data is rasterized to output raster using "sum" function.
 #' @param env_field Data masking. Column of env_data that env_data will be rasterized on. Ignored if env_data not a SpatVector or sf class.
 #' @param env_buff Positive numeric. Optional buffer around SpatVector/sf env_data in meters if output has a longtitude/latitude CRS or in the units of the CRS. See terra::buffer(). Ignored if env_data not a SpatVector or sf class.
-#' @param normalize Boolean. If activity data should be normalized.
+#' @param normalize Boolean. If TRUE activity space SpatRaster is normalized
 #' @param norm_method Character. Normalization method. Four methods - "center", "scale", "standardize" and "range". Default is "range". See BBmisc::normalize().
-#' @param norm_group Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is rescaled seperately. If TRUE SpatRasters are rescaled to SpatRaster with highest max value.
+#' @param norm_group Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is normalized seperately. If TRUE SpatRasters are normalized to SpatRaster with highest max value.
 #' @param grid_extent Stars, SpatRaster, SpatExtent, sf bbox object or numeric vector of 4 length c(xmin, xmax, ymin, ymax). If stars or SpatRaster grid_extent is output's grid and cellsize argument is ignored. If SpatExtent, sf bbox object or vector grid_extent is output's extent. If cellsize is set it is preserved at the cost of extent.
 #' @param input_crs Character or terra crs object. Coordinate Reference System of data's coordinates if data is a data.frame.
 #' @param output_crs Character or terra crs object. Coordinate Reference System of output. If not set and env_data is a SpatRaster env_data's CRS is used.
@@ -58,7 +58,7 @@
 #'
 #'
 #' @export
-exposure_KDE = function(data, x, y, NA_val, cellsize, group_split, bandwidth = 200, env_data,
+exposure_KDE = function(data, x, y, NA_val, cellsize, group_split, bandwidth, env_data,
                        env_field, env_buff, normalize = FALSE, norm_method = "range",
                        norm_group = FALSE, grid_extent, input_crs, output_crs, filepath){
 
@@ -73,6 +73,13 @@ exposure_KDE = function(data, x, y, NA_val, cellsize, group_split, bandwidth = 2
     }
   }
 
+  #handle bandwidth
+  if (missing(bandwidth)){
+    stop("Missing bandwidth argument. Provide valid bandwidth")
+  } else if (length(bandwidth) != 1 || !is.numeric(bandwidth) || bandwidth <= 0){
+    stop("Invalid bandwidth argument - bandwidth is neither positive nor single numeric value")
+  }
+
   # handle grid_extent
   if (!missing(grid_extent)){
     if (any(class(grid_extent) == "stars")){
@@ -85,31 +92,57 @@ exposure_KDE = function(data, x, y, NA_val, cellsize, group_split, bandwidth = 2
     }
   }
 
+  # handle normalize and norm_group
+  if (is.na(as.logical(normalize))){
+    stop("Invalid normalize argument - normalize argument cannot be interpreted as boolean")
+  } else {
+    normalize = as.logical(normalize)
+  }
+
+  if (is.na(as.logical(norm_group))){
+    stop("Invalid norm_group argument - norm_group argument cannot be interpreted as boolean")
+  } else {
+    norm_group = as.logical(norm_group)
+  }
+
   # handle norm_method
   if (!norm_method %in% c("center", "scale", "standardize", "range") && normalize == TRUE) {
-    warning('Ivnalid norm_method. Applying default normalization method "range"')
+    warning('Invalid norm_method - applying default normalization method "range"')
     norm_method = "range"
   }
 
-  if (all(class(data) == "data.frame")){
-    if (all(!c(missing(x), missing(y)))){
-      x_enq = rlang::enquo(x)
-      y_enq = rlang::enquo(y)
+  # get spatial data with correct crs
+  if (!missing(data)){
+    if (all(class(data) == "data.frame")){
+      if (all(!c(missing(x), missing(y)))){
+        x_enq = rlang::enquo(x)
+        y_enq = rlang::enquo(y)
 
-      data_proj = start_processing(data = data, x = rlang::quo_name(x_enq),
-                                   y = rlang::quo_name(y_enq), NA_val = NA_val,
-                                   env_data = env_data, grid_extent = grid_extent,
-                                   input_crs = input_crs, output_crs = output_crs)
+        if (all(c(rlang::quo_name(y_enq), rlang::quo_name(y_enq)) %in% colnames(data))){
+
+          data_proj = start_processing(data = data, x = rlang::quo_name(x_enq),
+                                       y = rlang::quo_name(y_enq), NA_val = NA_val,
+                                       env_data = env_data, grid_extent = grid_extent,
+                                       input_crs = input_crs, output_crs = output_crs)
+        } else {
+          stop("Invalid x or y arguments - x or y are not a column in data")
+        }
+      } else {
+        stop('Missing x or y arguments for data "data.frame" class')
+      }
     } else {
-      stop('Incorrect x and y arguments for data "data.frame" class')
+      data_proj = start_processing(data = data, env_data = env_data,
+                                   grid_extent = grid_extent, input_crs = input_crs,
+                                   output_crs = output_crs)
     }
   } else {
-    data_proj = start_processing(data = data, env_data = env_data,
-                                 grid_extent = grid_extent, input_crs = input_crs,
-                                 output_crs = output_crs)
+    stop("Missing data argument - provide valid data argument")
   }
 
   if (!missing(grid_extent) && any(class(grid_extent) == "SpatRaster")){
+    if (terra::crs(data_proj) != terra::crs(grid_extent)){
+      grid_extent = terra::project(grid_extent, terra::crs(data_proj))
+    }
     grid_rast = grid_extent
   } else {
     grid_rast = calc_grid(x = data_proj, cellsize = cellsize, env_data = env_data,
@@ -130,8 +163,14 @@ exposure_KDE = function(data, x, y, NA_val, cellsize, group_split, bandwidth = 2
     data_iter = list(data_proj) # only one item for for loop
   } else {
     enq_group_split = rlang::enquo(group_split)
-    data_iter = terra::split(data_proj, rlang::quo_name(enq_group_split)) # split data_proj by group_split
-    message(paste0("Data split by group into ", length(data_iter), " items"))
+    if (rlang::quo_name(enq_group_split) %in% terra::names(data_proj)){
+      data_iter = terra::split(data_proj, rlang::quo_name(enq_group_split)) # split data_proj by group_split
+      message(paste0("Data split by group into ", length(data_iter), " items"))
+    } else {
+      data_iter = list(data_proj)
+      warning("Invalid group_split argument - group_split is not a column in data. Data not split")
+    }
+
   }
 
   if (length(data_iter) > 1 && !missing(filepath)) {
@@ -181,9 +220,9 @@ exposure_KDE = function(data, x, y, NA_val, cellsize, group_split, bandwidth = 2
 
     ### UNCOMMENT IF EVERY RAST SHOULD HAVE SAME EXTENT
 
-    if (normalize == TRUE && (norm_group != TRUE || norm_method != "range" || missing(group_split))){
-      if (norm_method == "range") {
-        message('Norm_method is "range". Norm_group argument ignored. Normalizing each group seperately')
+    if (normalize == TRUE && (norm_group == FALSE || norm_method != "range" || length(data_iter) == 1)){
+      if (norm_method != "range" && norm_group == TRUE) {
+        message(paste0('Norm_method is "', norm_method, '" - norm_group is TRUE is applicable only for norm_method "range". Norm group argument ignored. Normalizing each group seperately'))
       }
       # calculate normalization
       terra::values(kde_rast) = BBmisc::normalize(terra::values(kde_rast),
@@ -208,7 +247,7 @@ exposure_KDE = function(data, x, y, NA_val, cellsize, group_split, bandwidth = 2
     ### UNCOMMENT IF ALL RAST AS STACK RASTER
   }
 
-  if (normalize == TRUE && norm_method == "range" && norm_group == TRUE && !missing(group_split)){
+  if (normalize == TRUE && norm_method == "range" && norm_group == TRUE && length(data_iter) > 1){
 
     max_val = max(sapply(act_out, terra::minmax)[2,], na.rm = TRUE)
 

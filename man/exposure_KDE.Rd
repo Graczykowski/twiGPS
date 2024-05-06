@@ -11,7 +11,7 @@ exposure_KDE(
   NA_val,
   cellsize,
   group_split,
-  bandwidth = 200,
+  bandwidth,
   env_data,
   env_field,
   env_buff,
@@ -27,9 +27,9 @@ exposure_KDE(
 \arguments{
 \item{data}{Data.frame, SpatVector points or sf data.frame containing only POINTS.}
 
-\item{x}{Data masking. x or lontitude coordinates column if data is a data.frame.}
+\item{x}{Data masking. x or longitude coordinates column name if data is a data.frame.}
 
-\item{y}{Data masking. y or latitude coordinates column if data is a data.frame.}
+\item{y}{Data masking. y or latitude coordinates column name if data is a data.frame.}
 
 \item{NA_val}{Numeric. Value in x and y marked as NA if data is a data.frame.}
 
@@ -45,11 +45,11 @@ exposure_KDE(
 
 \item{env_buff}{Positive numeric. Optional buffer around SpatVector/sf env_data in meters if output has a longtitude/latitude CRS or in the units of the CRS. See terra::buffer(). Ignored if env_data not a SpatVector or sf class.}
 
-\item{normalize}{Boolean. If activity data should be normalized.}
+\item{normalize}{Boolean. If TRUE activity space SpatRaster is normalized}
 
 \item{norm_method}{Character. Normalization method. Four methods - "center", "scale", "standardize" and "range". Default is "range". See BBmisc::normalize().}
 
-\item{norm_group}{Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is rescaled seperately. If TRUE SpatRasters are rescaled to SpatRaster with highest max value.}
+\item{norm_group}{Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is normalized seperately. If TRUE SpatRasters are normalized to SpatRaster with highest max value.}
 
 \item{grid_extent}{Stars, SpatRaster, SpatExtent, sf bbox object or numeric vector of 4 length c(xmin, xmax, ymin, ymax). If stars or SpatRaster grid_extent is output's grid and cellsize argument is ignored. If SpatExtent, sf bbox object or vector grid_extent is output's extent. If cellsize is set it is preserved at the cost of extent.}
 
