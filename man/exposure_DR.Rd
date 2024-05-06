@@ -5,58 +5,96 @@
 \title{Density Ranking exposure}
 \usage{
 exposure_DR(
+  data,
   x,
-  cellsize = NULL,
-  bandwidth = 200,
-  env_data = NULL,
-  scale_01 = FALSE,
-  data_extent = NULL,
-  input_crs = "EPSG:4326",
-  output_crs = NULL,
-  stats = NULL
+  y,
+  NA_val,
+  cellsize,
+  group_split,
+  bandwidth,
+  env_data,
+  env_field,
+  env_buff,
+  normalize = FALSE,
+  norm_method = "range",
+  norm_group = FALSE,
+  grid_extent,
+  input_crs,
+  output_crs,
+  filepath
 )
 }
 \arguments{
-\item{x}{data frame with lon lat coordinates columns}
+\item{data}{Data.frame, SpatVector points or sf data.frame containing only POINTS.}
 
-\item{cellsize}{positive numeric size of raster cells in meters}
+\item{x}{Data masking. x or longitude coordinates column name if data is a data.frame.}
 
-\item{bandwidth}{positive numeric bandwidth in units of x}
+\item{y}{Data masking. y or latitude coordinates column name if data is a data.frame.}
 
-\item{env_data}{SpatRaster object of environmental data}
+\item{NA_val}{Numeric. Value in x and y marked as NA if data is a data.frame.}
 
-\item{scale_01}{boolean argument if activity data should be rescaled to 0-1 values range}
+\item{cellsize}{Positive numeric. Size of raster cells in meters if output has a longtitude/latitude CRS or in the units of output CRS.}
 
-\item{data_extent}{TODO}
+\item{group_split}{Data masking. Column of data based on which it is grouped and split. For n groups output will be n SpatRasters.}
 
-\item{input_crs}{character or terra crs object specifying coordinate reference system of coordinates in x data frame}
+\item{bandwidth}{Positive numeric. Bandwidth in units of output Coordinate Reference System.}
 
-\item{output_crs}{character or terra crs object of coordinate reference system of output}
+\item{env_data}{Stars, SpatRaster, SpatVector or sf. Spatial environmental data. Activity space is calculated when not set. When argument is a SpatVector or sf object vector data is rasterized to output raster using "sum" function.}
 
-\item{stats}{vector of characters statistics to be calculated. See terra::global. "count", "range" and "area" additionally added.}
+\item{env_field}{Data masking. Column of env_data that env_data will be rasterized on. Ignored if env_data not a SpatVector or sf class.}
+
+\item{env_buff}{Positive numeric. Optional buffer around SpatVector/sf env_data in meters if output has a longtitude/latitude CRS or in the units of the CRS. See terra::buffer(). Ignored if env_data not a SpatVector or sf class.}
+
+\item{normalize}{Boolean. If TRUE activity space SpatRaster is normalized}
+
+\item{norm_method}{Character. Normalization method. Four methods - "center", "scale", "standardize" and "range". Default is "range". See BBmisc::normalize().}
+
+\item{norm_group}{Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is normalized seperately. If TRUE SpatRasters are normalized to SpatRaster with highest max value.}
+
+\item{grid_extent}{Stars, SpatRaster, SpatExtent, sf bbox object or numeric vector of 4 length c(xmin, xmax, ymin, ymax). If stars or SpatRaster grid_extent is output's grid and cellsize argument is ignored. If SpatExtent, sf bbox object or vector grid_extent is output's extent. If cellsize is set it is preserved at the cost of extent.}
+
+\item{input_crs}{Character or terra crs object. Coordinate Reference System of data's coordinates if data is a data.frame.}
+
+\item{output_crs}{Character or terra crs object. Coordinate Reference System of output. If not set and env_data is a SpatRaster env_data's CRS is used.}
+
+\item{filepath}{Character. Output filename. See terra::writeRaster().}
 }
 \value{
-list of SpatRaster result and data frame of statistics
+SpatRaster
 }
 \description{
-Density Ranking method activity space and environmental exposure. Using modifed DR function from Yen-Chi Chen's repository density_ranking.
-Bandwidth is a smoothing parameter same as h in TDA::kde(). In order to receive activity space ignore env_data argument.
+Density Ranking method activity space and environmental exposure.
+Using spat_dr() function based on Silverman, B. W. 1986 (KDE) and DR function from Yen-Chi Chen's repository yenchic/density_ranking.
+In order to receive activity space ignore env_data argument.
 }
 \examples{
 
-statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
-
-
 # activity space
-exposure_DR(x = geolife_sandiego, cellsize = 50, bandwidth = 70,
- scale_01 = TRUE, input_crs = "EPSG:4326", output_crs = "EPSG:32611",
- stats = statistics)
+exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, bandwidth = 200,
+ normalize = TRUE, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+
+# split by date
+exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, group_split = date,
+   bandwidth = 200, normalize = TRUE, norm_group = FALSE, input_crs = "EPSG:4326",
+   output_crs = "EPSG:32611")
+
+# split by date and define extent
+extent = c(478000, 484000, 3618000, 3627000)
+
+exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, group_split = date,
+  bandwidth = 200, normalize = TRUE,norm_group = TRUE, grid_extent = extent,
+  input_crs = "EPSG:4326", output_crs = "EPSG:32611")
 
 #environmental exposure
+
 ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
 
-exposure_DR(x = geolife_sandiego, cellsize = 50, bandwidth = 70,
- env_data = ndvi_data, scale_01 = TRUE, input_crs = "EPSG:4326",
- output_crs = "EPSG:32611", stats = statistics)
+exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, bandwidth = 200,
+  env_data = ndvi_data, normalize = FALSE, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+
+# environmental exposure - use rast grid and split by date
+exposure_DR(data = geolife_sandiego, x = lon, y = lat, group_split = date,
+  bandwidth = 200, env_data = ndvi_data, normalize = TRUE, norm_group = TRUE,
+  grid_extent = ndvi_data, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
 
 }

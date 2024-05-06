@@ -5,63 +5,106 @@
 \title{Line Segment Method exposure}
 \usage{
 exposure_LS(
+  data,
   x,
-  time_data = NULL,
+  y,
+  NA_val,
+  time_data,
   time_unit = "mins",
-  cellsize = NULL,
-  bandwidth = 200,
-  env_data = NULL,
-  data_extent = NULL,
-  input_crs = "EPSG:4326",
-  output_crs = NULL,
-  stats = NULL
+  cellsize,
+  group_split,
+  bandwidth,
+  env_data,
+  env_field,
+  env_buff,
+  normalize = FALSE,
+  norm_method = "range",
+  norm_group = FALSE,
+  time_only_norm = FALSE,
+  grid_extent,
+  input_crs,
+  output_crs,
+  filepath
 )
 }
 \arguments{
-\item{x}{data frame with lon lat coordinates columns}
+\item{data}{Data.frame, SpatVector points or sf data.frame containing only POINTS.}
 
-\item{time_data}{name of column in x containing POSIXct data class}
+\item{x}{Data masking. x or longitude coordinates column name if data is a data.frame.}
 
-\item{time_unit}{character indicating unit of weights of time_data. Ignored if time_data not specified. See difftime()}
+\item{y}{Data masking. y or latitude coordinates column name if data is a data.frame.}
 
-\item{cellsize}{positive numeric size of raster cells in meters}
+\item{NA_val}{Numeric. Value in x and y marked as NA if data is a data.frame.}
 
-\item{bandwidth}{positive numeric size of segments in meters}
+\item{time_data}{Data masking. Column of data containing POSIXct class objects.}
 
-\item{env_data}{SpatRaster object of environmental data}
+\item{time_unit}{Character. Unit of time weights of time_data. Ignored if time_data not specified. See difftime().}
 
-\item{data_extent}{TODO}
+\item{cellsize}{Positive numeric. Size of raster cells in meters if output has a longtitude/latitude CRS or in the units of output CRS.}
 
-\item{input_crs}{character or terra crs object specifying coordinate reference system of coordinates in x data frame}
+\item{group_split}{Data masking. Column of data based on which it is grouped and split. For n groups output will be n SpatRasters.}
 
-\item{output_crs}{character or terra crs object of coordinate reference system of output}
+\item{bandwidth}{Positive numeric. Bandwidth in meters if output has a longtitude/latitude CRS or in the units of output CRS.}
 
-\item{stats}{vector of characters statistics to be calculated. See terra::global. "count", "range" and "area" additionally added.}
+\item{env_data}{Stars, SpatRaster, SpatVector or sf. Spatial environmental data. Activity space is calculated when not set. When argument is a SpatVector or sf object vector data is rasterized to output raster using "sum" function.}
+
+\item{env_field}{Data masking. Column of env_data that env_data will be rasterized on. Ignored if env_data not a SpatVector or sf class.}
+
+\item{env_buff}{Positive numeric. Optional buffer around SpatVector/sf env_data in meters if output has a longtitude/latitude CRS or in the units of the CRS. See terra::buffer(). Ignored if env_data not a SpatVector or sf class.}
+
+\item{normalize}{Boolean. If TRUE activity space SpatRaster is normalized}
+
+\item{norm_method}{Character. Normalization method. Four methods - "center", "scale", "standardize" and "range". Default is "range". See BBmisc::normalize().}
+
+\item{norm_group}{Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is normalized seperately. If TRUE SpatRasters are normalized to SpatRaster with highest max value.}
+
+\item{time_only_norm}{Boolean. Time type of normalization. If TRUE only time_data is normalized, normalized raster values may be imprecise. If FALSE and norm_method is "range" normalization is conducted with regard to spatial distribution, normalized raster values are accurate. TEMPORARY}
+
+\item{grid_extent}{Stars, SpatRaster, SpatExtent, sf bbox object or numeric vector of 4 length c(xmin, xmax, ymin, ymax). If stars or SpatRaster grid_extent is output's grid and cellsize argument is ignored. If SpatExtent, sf bbox object or vector grid_extent is output's extent. If cellsize is set it is preserved at the cost of extent.}
+
+\item{input_crs}{Character or terra crs object. Coordinate Reference System of data's coordinates if data is a data.frame.}
+
+\item{output_crs}{Character or terra crs object. Coordinate Reference System of output. If not set and env_data is a SpatRaster env_data's CRS is used.}
+
+\item{filepath}{Character. Output filename. See terra::writeRaster().}
 }
 \value{
-list of SpatRaster result and data frame of statistics
+SpatRaster
 }
 \description{
-Line Segment method activity space and environmental exposure. Based on code from Micheal garber's repository microclim-static-v-dynam.
+Line Segment method activity space and environmental exposure. Based on code from Micheal Garber's repository michaeldgarber/microclim-static-v-dynam.
 In order to receive activity space ignore env_data argument.
 }
 \examples{
 
-statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
-
-
 # activity space
-exposure_LS(x = geolife_sandiego, time_data = dateTime, time_unit = "mins",
- cellsize = 50, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611",
-  stats = statistics)
+exposure_LS(data = geolife_sandiego, x = lon, y = lat, time_data = dateTime, time_unit = "mins",
+  cellsize = 50, bandwidth = 200, normalize = TRUE, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+
+# split by date
+exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, group_split = date,
+   bandwidth = 200, normalize = TRUE, norm_group = FALSE, input_crs = "EPSG:4326",
+   output_crs = "EPSG:32611")
+
+# split by date and define extent with time_only_norm
+extent = c(478000, 484000, 3618000, 3627000)
+
+exposure_LS(data = geolife_sandiego, x = lon, y = lat, time_data = dateTime, time_unit = "mins",
+  cellsize = 50, group_split = date, bandwidth = 200, normalize = TRUE, norm_group = TRUE,
+  time_only_norm = TRUE, grid_extent = extent, input_crs = "EPSG:4326",
+  output_crs = "EPSG:32611")
 
 #environmental exposure
 
 ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
 
-exposure_LS(x = geolife_sandiego, time_data = dateTime, time_unit = "mins",
- cellsize = 50, bandwidth = 200, env_data = ndvi_data, input_crs = "EPSG:4326",
- output_crs = "EPSG:32611", stats = statistics)
+exposure_LS(data = geolife_sandiego, x = lon, y = lat, time_data = dateTime, time_unit = "mins",
+  cellsize = 50, bandwidth = 200, env_data = ndvi_data, normalize = FALSE,
+  input_crs = "EPSG:4326", output_crs = "EPSG:32611")
 
-
+# environmental exposure - use rast grid and split by date with time_only_norm
+exposure_LS(data = geolife_sandiego, x = lon, y = lat, time_data = dateTime, time_unit = "mins",
+  group_split = date, bandwidth = 200, env_data = ndvi_data, normalize = TRUE,
+  norm_group = TRUE, time_only_norm = TRUE, grid_extent = ndvi_data, input_crs = "EPSG:4326",
+  output_crs = "EPSG:32611")
 }
