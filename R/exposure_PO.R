@@ -42,14 +42,14 @@
 #'
 #' #environmental exposure
 #'
-#' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
+#' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 #'
 #' exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, env_data = ndvi_data,
 #'  normalize = FALSE, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
 #'
 #' # environmental exposure - use rast grid and split by date
 #' exposure_PO(data = geolife_sandiego, x = lon, y = lat, group_split = date,
-#'   env_data = ndvi_data, normalize = TRUE, norm_group = TRUE, grid_extent = ndvi_data,
+#'   env_data = ndvi_data, normalize = FALSE, norm_group = TRUE, grid_extent = ndvi_data,
 #'   input_crs = "EPSG:4326", output_crs = "EPSG:32611")
 #'
 #'
@@ -64,23 +64,23 @@ exposure_PO = function(data, x, y, NA_val, cellsize, group_split, env_data, env_
 
   # handle stars objects rasters as env_data
   if (!missing(env_data)) {
-    if (any(class(env_data) == "stars")){
+    if (inherits(env_data, "stars")){
       env_data = terra::rast(env_data)
-    } else if (any(class(env_data) == "sf")) {
+    } else if (inherits(env_data, "sf")) {
       env_data = terra::vect(env_data)
-    } else if (any(!class(env_data) %in% c("SpatVector", "SpatRaster"))){
+    } else if (!inherits(env_data, c("SpatVector", "SpatRaster"))){
       stop("Invalid env_data - env_data neither stars, sf, SpatVector nor SpatRaster class")
     }
   }
 
   # handle grid_extent
   if (!missing(grid_extent)){
-    if (any(class(grid_extent) == "stars")){
+    if (inherits(grid_extent, "stars")){
       grid_extent = terra::rast(grid_extent)
-    } else if (any(class(grid_extent) == "bbox" || (is.vector(grid_extent) &&
-                                                    all(class(grid_extent) == "numeric") && length(grid_extent) == 4))){
+    } else if (inherits(grid_extent, "bbox") || (is.vector(grid_extent) &&
+                                                 inherits(grid_extent, "numeric") && length(grid_extent) == 4)){
       grid_extent = terra::ext(grid_extent)
-    } else if (any(!class(grid_extent) %in% c("SpatExtent", "SpatRaster"))){
+    } else if (!inherits(grid_extent, c("SpatExtent", "SpatRaster"))){
       stop("Invalid grid_extent - grid_extent neither stars, SpatRaster, SpatExtent, bbox class nor numeric vector of 4 length")
     }
   }
@@ -88,33 +88,29 @@ exposure_PO = function(data, x, y, NA_val, cellsize, group_split, env_data, env_
   # handle normalize and norm_group
   if (is.na(as.logical(normalize))){
     stop("Invalid normalize argument - normalize argument cannot be interpreted as boolean")
-  } else {
-    normalize = as.logical(normalize)
   }
 
   if (is.na(as.logical(norm_group))){
     stop("Invalid norm_group argument - norm_group argument cannot be interpreted as boolean")
-  } else {
-    norm_group = as.logical(norm_group)
   }
 
   # handle norm_method
-  if (!norm_method %in% c("center", "scale", "standardize", "range") && normalize == TRUE) {
+  if (!norm_method %in% c("center", "scale", "standardize", "range") && normalize) {
     warning('Invalid norm_method - applying default normalization method "range"')
     norm_method = "range"
   }
 
   # get spatial data with correct crs
   if (!missing(data)){
-    if (all(class(data) == "data.frame")){
+    if (inherits(data, "data.frame")){
       if (all(!c(missing(x), missing(y)))){
-        x_enq = rlang::enquo(x)
-        y_enq = rlang::enquo(y)
+        x_enq = rlang::quo_name(rlang::enquo(x))
+        y_enq = rlang::quo_name(rlang::enquo(y))
 
-        if (all(c(rlang::quo_name(y_enq), rlang::quo_name(y_enq)) %in% colnames(data))){
+        if (all(c(x_enq, y_enq) %in% colnames(data))){
 
-          data_proj = start_processing(data = data, x = rlang::quo_name(x_enq),
-                                       y = rlang::quo_name(y_enq), NA_val = NA_val,
+          data_proj = start_processing(data = data, x = x_enq,
+                                       y = y_enq, NA_val = NA_val,
                                        env_data = env_data, grid_extent = grid_extent,
                                        input_crs = input_crs, output_crs = output_crs)
         } else {
@@ -132,7 +128,7 @@ exposure_PO = function(data, x, y, NA_val, cellsize, group_split, env_data, env_
     stop("Missing data argument - provide valid data argument")
   }
 
-  if (!missing(grid_extent) && any(class(grid_extent) == "SpatRaster")){
+  if (!missing(grid_extent) && inherits(grid_extent, "SpatRaster")){
     if (terra::crs(data_proj) != terra::crs(grid_extent)){
       grid_extent = terra::project(grid_extent, terra::crs(data_proj))
     }
@@ -143,7 +139,7 @@ exposure_PO = function(data, x, y, NA_val, cellsize, group_split, env_data, env_
   }
 
   # if env_data is vector data - create optional buffer and rasterize to grid raster
-  if (!missing(env_data) && any(class(env_data) == "SpatVector")) {
+  if (!missing(env_data) && inherits(env_data, "SpatVector")) {
 
     env_data = env_vect(env = env_data, env_buff = env_buff,
                         env_field = env_field, grid = grid_rast)
@@ -153,9 +149,9 @@ exposure_PO = function(data, x, y, NA_val, cellsize, group_split, env_data, env_
   if (missing(group_split)) {
     data_iter = list(data_proj) # only one item for for loop
   } else {
-    enq_group_split = rlang::enquo(group_split)
-    if (rlang::quo_name(enq_group_split) %in% terra::names(data_proj)){
-      data_iter = terra::split(data_proj, rlang::quo_name(enq_group_split)) # split data_proj by group_split
+    enq_group_split = rlang::quo_name(rlang::enquo(group_split))
+    if (enq_group_split %in% terra::names(data_proj)){
+      data_iter = terra::split(data_proj, enq_group_split) # split data_proj by group_split
       message(paste0("Data split by group into ", length(data_iter), " items"))
     } else {
       data_iter = list(data_proj)
@@ -164,19 +160,7 @@ exposure_PO = function(data, x, y, NA_val, cellsize, group_split, env_data, env_
 
   }
 
-  if (length(data_iter) > 1 && !missing(filepath)) {
-    # list output
-
-    # for iterating file names
-    file_ext = stringi::stri_extract(filepath, regex = "\\.(\\w+)$")
-    file_no_ext = substr(filepath, 1, nchar(filepath) - nchar(file_ext))
-
-    file_vect = rep(file_no_ext, length.out = length(data_iter))
-    file_vect = paste0(file_vect, "_", seq_along(file_vect), file_ext)
-  }
-
   act_out = list()
-  output = list()
 
 
   for (data_i in data_iter){
@@ -184,13 +168,13 @@ exposure_PO = function(data, x, y, NA_val, cellsize, group_split, env_data, env_
     # if all groups should have same extent then output is rast with n layers
 
     ### UNCOMMENT IF EVERY RAST SHOULD HAVE SEPERATE EXTENT
-    if (missing(grid_extent)) {
-      # crop ext of each rast
-      grid_crop = terra::crop(grid_rast, terra::ext(data_i))
-      rast_points = terra::rasterize(data_i, grid_crop,  fun = "length")
-    } else {
-      rast_points = terra::rasterize(data_i, grid_rast,  fun = "length")
-    }
+    # if (missing(grid_extent)) {
+    #   # crop ext of each rast
+    #   grid_crop = terra::crop(grid_rast, terra::ext(data_i))
+    #   rast_points = terra::rasterize(data_i, grid_crop,  fun = "length")
+    # } else {
+    #   rast_points = terra::rasterize(data_i, grid_rast,  fun = "length")
+    # }
 
 
     ### UNCOMMENT IF EVERY RAST SHOULD HAVE SEPERATE EXTENT
@@ -198,85 +182,69 @@ exposure_PO = function(data, x, y, NA_val, cellsize, group_split, env_data, env_
 
     ### UNCOMMENT IF EVERY RAST SHOULD HAVE SAME EXTENT
 
-    #rast_points = terra::rasterize(data_i, grid_rast,  fun = "length")
+    rast_points = terra::rasterize(data_i, grid_rast,  fun = "length")
 
 
     ### UNCOMMENT IF EVERY RAST SHOULD HAVE SAME EXTENT
 
 
-    if (normalize == TRUE && (norm_group == FALSE || norm_method != "range" || length(data_iter) == 1)){
-      if (norm_method != "range" && norm_group == TRUE) {
+    if (normalize && (!norm_group || norm_method != "range" || length(data_iter) == 1)){
+      if (norm_method != "range" && norm_group) {
         message(paste0('Norm_method is "', norm_method, '" - norm_group is TRUE is applicable only for norm_method "range". Norm group argument ignored. Normalizing each group seperately'))
       }
       # calculate normalization to 0-1 range
-      terra::values(rast_points) = BBmisc::normalize(terra::values(rast_points),
-                                                     method = norm_method, margin = 2L)
+      rast_points = normalization(rast_points, method = norm_method)
 
     }
 
     ### UNCOMMENT IF EVERY RAST SHOULD BE A SEPERATE ELEMENT IN LIST
 
-    act_out[length(act_out) + 1] = as.list(rast_points)
+    # act_out[length(act_out) + 1] = as.list(rast_points)
 
     ### UNCOMMENT IF EVERY RAST SHOULD BE A SEPERATE ELEMENT IN LIST
 
 
     ### UNCOMMENT IF ALL RAST AS STACK RASTER
 
-    #act_out = append(act_out, kde_rast)
+    act_out = suppressWarnings(append(act_out, rast_points))
 
     ### UNCOMMENT IF ALL RAST AS STACK RASTER
   }
 
-  if (normalize == TRUE && norm_method == "range" && norm_group == TRUE && length(data_iter) > 1){
+  if (normalize && norm_method == "range" && norm_group && length(data_iter) > 1){
 
-    max_val = max(sapply(act_out, terra::minmax)[2,], na.rm = TRUE)
+    #max_val = max(terra::minmax(act_out)[2,], na.rm = TRUE)
 
-    act_out = sapply(act_out, function(x) {
-      if (!(all(is.na(terra::values(x))))) {
-        terra::values(x) = BBmisc::normalize(terra::values(x), method = "range",
-                                             margin = 2L,
-                                             range = c(0, terra::minmax(x)[2] / max_val))
-      }
-      return(x)
-    })
+    act_out = normalization(act_out, method = "range")
+
+    # act_out = sapply(act_out, function(x) {
+    #   if (!(all(is.na(terra::values(x))))) {
+    #     terra::values(x) = BBmisc::normalize(terra::values(x), method = "range",
+    #                                          margin = 2L,
+    #                                          range = c(0, terra::minmax(x)[2] / max_val))
+    #   }
+    #   return(x)
+    # })
   }
 
-  for (out in act_out) {
-    if (!missing(env_data)){ # calculate exposure
-      # project env_data to grid
-      env_data_proj = terra::project(env_data, out)
-      # if same ext for groups out -> grid_rast and this code chunk out of loop
 
-      #env_data_resamp = terra::resample(env_data_proj, out)
+  if (!missing(env_data)){
+    # project env_data to grid
+    env_data_proj = terra::project(env_data, grid_rast)
 
-      rast_env_points = out * env_data_proj
-      end_rast = rast_env_points
-    } else {
-      end_rast = out
-    }
-    if (length(data_iter) == 1) { # if one group or no group output is not a list
-      output = end_rast
-    } else {
-      output[length(output) + 1] = as.list(end_rast)
-    }
+    rast_env_points = act_out * env_data_proj
+    output = rast_env_points
+  } else {
+    output = act_out
   }
 
 
   if (!missing(filepath)) { # save raster
-    if (length(data_iter) > 1){ # update filepath
-
-      mapply(function(x, y) {
-        terra::writeRaster(x, filename = y)
-        message(paste0("Saving output to ", y))
-      }, x = output, y = file_vect)
-
-    } else {
-
-      terra::writeRaster(end_rast, filename = filepath)
+      terra::writeRaster(output, filename = filepath)
       message(paste0("Saving output to ", filepath))
-    }
   }
 
   return(output)
 }
+
+

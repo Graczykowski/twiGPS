@@ -20,7 +20,6 @@ exposure_LS(
   normalize = FALSE,
   norm_method = "range",
   norm_group = FALSE,
-  time_only_norm = FALSE,
   grid_extent,
   input_crs,
   output_crs,
@@ -58,8 +57,6 @@ exposure_LS(
 
 \item{norm_group}{Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is normalized seperately. If TRUE SpatRasters are normalized to SpatRaster with highest max value.}
 
-\item{time_only_norm}{Boolean. Time type of normalization. If TRUE only time_data is normalized, normalized raster values may be imprecise. If FALSE and norm_method is "range" normalization is conducted with regard to spatial distribution, normalized raster values are accurate. TEMPORARY}
-
 \item{grid_extent}{Stars, SpatRaster, SpatExtent, sf bbox object or numeric vector of 4 length c(xmin, xmax, ymin, ymax). If stars or SpatRaster grid_extent is output's grid and cellsize argument is ignored. If SpatExtent, sf bbox object or vector grid_extent is output's extent. If cellsize is set it is preserved at the cost of extent.}
 
 \item{input_crs}{Character or terra crs object. Coordinate Reference System of data's coordinates if data is a data.frame.}
@@ -79,7 +76,8 @@ In order to receive activity space ignore env_data argument.
 
 # activity space
 exposure_LS(data = geolife_sandiego, x = lon, y = lat, time_data = dateTime, time_unit = "mins",
-  cellsize = 50, bandwidth = 200, normalize = TRUE, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  cellsize = 50, bandwidth = 200, normalize = TRUE, input_crs = "EPSG:4326",
+  output_crs = "EPSG:32611")
 
 # split by date
 exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, group_split = date,
@@ -91,12 +89,12 @@ extent = c(478000, 484000, 3618000, 3627000)
 
 exposure_LS(data = geolife_sandiego, x = lon, y = lat, time_data = dateTime, time_unit = "mins",
   cellsize = 50, group_split = date, bandwidth = 200, normalize = TRUE, norm_group = TRUE,
-  time_only_norm = TRUE, grid_extent = extent, input_crs = "EPSG:4326",
+  grid_extent = extent, input_crs = "EPSG:4326",
   output_crs = "EPSG:32611")
 
 #environmental exposure
 
-ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
+ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 
 exposure_LS(data = geolife_sandiego, x = lon, y = lat, time_data = dateTime, time_unit = "mins",
   cellsize = 50, bandwidth = 200, env_data = ndvi_data, normalize = FALSE,
@@ -105,6 +103,6 @@ exposure_LS(data = geolife_sandiego, x = lon, y = lat, time_data = dateTime, tim
 # environmental exposure - use rast grid and split by date with time_only_norm
 exposure_LS(data = geolife_sandiego, x = lon, y = lat, time_data = dateTime, time_unit = "mins",
   group_split = date, bandwidth = 200, env_data = ndvi_data, normalize = TRUE,
-  norm_group = TRUE, time_only_norm = TRUE, grid_extent = ndvi_data, input_crs = "EPSG:4326",
+  norm_group = TRUE, grid_extent = ndvi_data, input_crs = "EPSG:4326",
   output_crs = "EPSG:32611")
 }

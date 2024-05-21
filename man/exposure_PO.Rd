@@ -81,14 +81,14 @@ exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, group_spli
 
 #environmental exposure
 
-ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
+ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 
 exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, env_data = ndvi_data,
  normalize = FALSE, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
 
 # environmental exposure - use rast grid and split by date
 exposure_PO(data = geolife_sandiego, x = lon, y = lat, group_split = date,
-  env_data = ndvi_data, normalize = TRUE, norm_group = TRUE, grid_extent = ndvi_data,
+  env_data = ndvi_data, normalize = FALSE, norm_group = TRUE, grid_extent = ndvi_data,
   input_crs = "EPSG:4326", output_crs = "EPSG:32611")
 
 

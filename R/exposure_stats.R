@@ -1,4 +1,4 @@
-#' Raster statistics
+#' Exposure statistics
 #'
 #' @description
 #' Calculate statistics dataframe from multiple SpatRasters
@@ -12,22 +12,22 @@
 #' @examples
 #' statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
 #'
-#' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
+#' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 #'
 #' exposure = exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE,
 #'                        input_crs = "EPSG:4326", output_crs = "EPSG:32611")
 #' # no names
-#' rast_stats(ndvi_data, exposure, stats = statistics)
+#' exposure_stats(ndvi_data, exposure, stats = statistics)
 #'
 #' # argument names
-#' rast_stats(ndvi = ndvi_data, PO = exposure, stats = statistics)
+#' exposure_stats(ndvi = ndvi_data, PO = exposure, stats = statistics)
 #'
 #' # names
-#' rast_stats(ndvi_data, exposure, stats = statistics, row_names = c("NDVI", "PO"))
+#' exposure_stats(ndvi_data, exposure, stats = statistics, row_names = c("NDVI", "PO"))
 #'
 #' @export
 
-rast_stats =  function(..., stats, row_names = NULL){
+exposure_stats =  function(..., stats, row_names = NULL){
 
   elipsis_list = list(...)
   el_class = sapply(elipsis_list, class)
