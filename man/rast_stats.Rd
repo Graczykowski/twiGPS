@@ -22,7 +22,7 @@ Calculate statistics dataframe from multiple SpatRasters
 \examples{
 statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
 
-ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
+ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 
 exposure = exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE,
                        input_crs = "EPSG:4326", output_crs = "EPSG:32611")

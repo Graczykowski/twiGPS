@@ -81,7 +81,7 @@ exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, group_spli
 
 #environmental exposure
 
-ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
+ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 
 exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, env_data = ndvi_data,
  normalize = FALSE, input_crs = "EPSG:4326", output_crs = "EPSG:32611")

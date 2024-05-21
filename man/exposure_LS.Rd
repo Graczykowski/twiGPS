@@ -96,7 +96,7 @@ exposure_LS(data = geolife_sandiego, x = lon, y = lat, time_data = dateTime, tim
 
 #environmental exposure
 
-ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twsagps"))
+ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 
 exposure_LS(data = geolife_sandiego, x = lon, y = lat, time_data = dateTime, time_unit = "mins",
   cellsize = 50, bandwidth = 200, env_data = ndvi_data, normalize = FALSE,
