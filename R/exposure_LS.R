@@ -2,69 +2,77 @@
 #' @description Line Segment method activity space and environmental exposure. Based on code from Micheal Garber's repository michaeldgarber/microclim-static-v-dynam.
 #' In order to receive activity space ignore env_data argument.
 #'
+#' For other exposure methods see: [exposure_PO()], [exposure_KDE()], [exposure_DR()]
+#'
+#' For calculating statistics of output raster use [exposure_stats()]
+#'
+#'
 #' @param data Data.frame, SpatVector points or sf data.frame containing only POINTS.
+#' @param coords Character. Vector of column names of x and y coordinates if data is a data.frame.
 #' @param bandwidth Positive numeric. Bandwidth in meters if output has a longtitude/latitude CRS or in the units of output CRS.
 #' @param cellsize Positive numeric. Size of raster cells in meters if output has a longtitude/latitude CRS or in the units of output CRS.
 #' @param time_data Data masking. Column of data containing POSIXct class objects.
 #' @param env_data Stars, SpatRaster, SpatVector or sf. Spatial environmental data. Activity space is calculated when not set. When argument is a SpatVector or sf object vector data is rasterized to output raster using "sum" function.
 #' @param output_crs Character or terra crs object. Coordinate Reference System of output. If not set and env_data is a SpatRaster env_data's CRS is used.
-#' @param grid_extent Stars, SpatRaster, SpatExtent, sf bbox object or numeric vector of 4 length c(xmin, xmax, ymin, ymax). If stars or SpatRaster grid_extent is output's grid and cellsize argument is ignored. If SpatExtent, sf bbox object or vector grid_extent is output's extent. If cellsize is set it is preserved at the cost of extent.
-#' @param normalize Boolean. If TRUE activity space SpatRaster is normalized
-#' @param group_split Data masking. Column of data based on which it is grouped and split. For n groups output will be n SpatRasters.
-#' @param filepath Character. Output filename. See terra::writeRaster().
-#' @param norm_group Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is normalized seperately. If TRUE SpatRasters are normalized to SpatRaster with highest max value.
-#' @param x Data masking. x or longitude coordinates column name if data is a data.frame.
-#' @param y Data masking. y or latitude coordinates column name if data is a data.frame.
 #' @param input_crs Character or terra crs object. Coordinate Reference System of data's coordinates if data is a data.frame.
-#' @param norm_method Character. Normalization method. Four methods - "center", "scale", "standardize" and "range". Default is "range". See BBmisc::normalize().
+#' @param grid_extent Stars, SpatRaster, SpatExtent, sf bbox object or numeric vector of 4 length c(xmin, xmax, ymin, ymax). If stars or SpatRaster grid_extent is output's grid and cellsize argument is ignored. If SpatExtent, sf bbox object or vector grid_extent is output's extent. If cellsize is set it is preserved at the cost of extent.
+#' @param normalize Character. If not empty activity space SpatRaster is normalized with specified method. Four methods - "center", "scale", "standardize" and "range". Default is "range". See BBmisc::normalize().
+#' @param group_split Data masking. Column of data based on which it is grouped and split. For n groups output will be n SpatRasters.
+#' @param norm_group Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is normalized seperately. If TRUE SpatRasters are normalized to SpatRaster with highest max value.
+#' @param filepath Character. Output filename. See terra::writeRaster().
 #' @param NA_val Numeric. Value in x and y marked as NA if data is a data.frame.
 #' @param time_unit Character. Unit of time weights of time_data. Ignored if time_data not specified. See difftime().
 #' @param env_field Data masking. Column of env_data that env_data will be rasterized on. Ignored if env_data not a SpatVector or sf class.
 #' @param env_buff Positive numeric. Optional buffer around SpatVector/sf env_data in meters if output has a longtitude/latitude CRS or in the units of the CRS. See terra::buffer(). Ignored if env_data not a SpatVector or sf class.
-#'
+#' @param verbose Boolean. If TRUE amount of output is reduced.
 #'
 #' @return SpatRaster
 #'
 #' @examples
-#'
 #' # activity space
-#' exposure_LS(data = geolife_sandiego, x = lon, y = lat, time_data = dateTime, time_unit = "mins",
-#'   cellsize = 50, bandwidth = 200, normalize = TRUE, input_crs = "EPSG:4326",
-#'   output_crs = "EPSG:32611")
+#' exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), bandwidth = 200,
+#'   cellsize = 50, time_data = dateTime, output_crs = "EPSG:32611",
+#'   input_crs = "EPSG:4326", normalize = "range", verbose = FALSE)
 #'
 #' # split by date
-#' exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, group_split = date,
-#'    bandwidth = 200, normalize = TRUE, norm_group = FALSE, input_crs = "EPSG:4326",
-#'    output_crs = "EPSG:32611")
+#' exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), bandwidth = 200,
+#'   cellsize = 50, normalize = "range", group_split = date, norm_group = FALSE,
+#'   output_crs = "EPSG:32611", input_crs = "EPSG:4326", verbose = FALSE)
 #'
 #' # split by date and define extent with time_only_norm
 #' extent = c(478000, 484000, 3618000, 3627000)
 #'
-#' exposure_LS(data = geolife_sandiego, x = lon, y = lat, time_data = dateTime, time_unit = "mins",
-#'   cellsize = 50, group_split = date, bandwidth = 200, normalize = TRUE, norm_group = TRUE,
-#'   grid_extent = extent, input_crs = "EPSG:4326",
-#'   output_crs = "EPSG:32611")
+#' exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), bandwidth = 200,
+#'   cellsize = 50, time_data = dateTime, output_crs = "EPSG:32611",
+#'   input_crs = "EPSG:4326", grid_extent = extent, normalize = "range",
+#'   group_split = date, norm_group = TRUE, verbose = FALSE)
 #'
 #' #environmental exposure
 #'
 #' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 #'
-#' exposure_LS(data = geolife_sandiego, x = lon, y = lat, time_data = dateTime, time_unit = "mins",
-#'   cellsize = 50, bandwidth = 200, env_data = ndvi_data, normalize = FALSE,
-#'   input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+#' exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), bandwidth = 200,
+#'   cellsize = 50, time_data = dateTime, env_data = ndvi_data,
+#'   output_crs = "EPSG:32611", input_crs = "EPSG:4326", verbose = FALSE)
 #'
 #' # environmental exposure - use rast grid and split by date with time_only_norm
-#' exposure_LS(data = geolife_sandiego, x = lon, y = lat, time_data = dateTime, time_unit = "mins",
-#'   group_split = date, bandwidth = 200, env_data = ndvi_data, normalize = TRUE,
-#'   norm_group = TRUE, grid_extent = ndvi_data, input_crs = "EPSG:4326",
-#'   output_crs = "EPSG:32611")
+#' exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), bandwidth = 200,
+#'   cellsize = 50, time_data = dateTime, env_data = ndvi_data,
+#'   output_crs = "EPSG:32611", input_crs = "EPSG:4326", grid_extent = ndvi_data,
+#'   normalize = "range", group_split = date, norm_group = TRUE, verbose = FALSE)
 #' @export
 
 
-exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
-                       cellsize, group_split, bandwidth, env_data, env_field, env_buff,
-                       normalize = FALSE, norm_method = "range", norm_group = FALSE,
-                       grid_extent, input_crs, output_crs, filepath){
+exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
+                       output_crs, input_crs, grid_extent, normalize, group_split,
+                       norm_group = FALSE, filepath, NA_val, time_unit = "mins",
+                       env_field, env_buff, verbose = TRUE){
+
+
+  # handle verbose
+  if (is.na(as.logical(verbose))){
+    stop("Argument 'verbose' should be interpretable as boolean")
+  }
 
   # handle stars objects rasters as env_data
   if (!missing(env_data)) {
@@ -73,15 +81,14 @@ exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
     } else if (inherits(env_data, "sf")) {
       env_data = terra::vect(env_data)
     } else if (!inherits(env_data, c("SpatVector", "SpatRaster"))){
-      stop("Invalid env_data - env_data neither stars, sf, SpatVector nor SpatRaster class")
+      stop("Argument 'env_data' should be stars, sf, SpatVector or SpatRaster class")
     }
   }
 
-  #handle bandwidth
   if (missing(bandwidth)){
-    stop("Missing bandwidth argument. Provide valid bandwidth")
+    stop("Argument 'bandwidth' is missing - valid 'bandwidth' argument should be provided")
   } else if (length(bandwidth) != 1 || !is.numeric(bandwidth) || bandwidth <= 0){
-    stop("Invalid bandwidth argument - bandwidth is neither positive nor single numeric value")
+    stop("Argument 'bandwidth' should be positive and single numeric value")
   }
 
   # handle grid_extent
@@ -92,65 +99,63 @@ exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
                                                  inherits(grid_extent, "numeric") && length(grid_extent) == 4)){
       grid_extent = terra::ext(grid_extent)
     } else if (!inherits(grid_extent, c("SpatExtent", "SpatRaster"))){
-      stop("Invalid grid_extent - grid_extent neither stars, SpatRaster, SpatExtent, bbox class nor numeric vector of 4 length")
+      stop("Argument 'grid_extent' should be stars, SpatRaster, SpatExtent, sf bbox class or numeric vector of 4 length")
     }
   }
 
-  # handle normalize and norm_group
-  if (is.na(as.logical(normalize))){
-    stop("Invalid normalize argument - normalize argument cannot be interpreted as boolean")
+  # handle normalize
+  if (!missing(normalize) && !normalize %in% c("center", "scale", "standardize", "range")) {
+    if (verbose) {
+      warning('Argumnet \'normalize\' should be "center", "scale", "standardize" or "range" - applying default normalization method "range"')
+    }
+    normalize = "range"
   }
 
+  # handle norm_group
   if (is.na(as.logical(norm_group))){
-    stop("Invalid norm_group argument - norm_group argument cannot be interpreted as boolean")
+    stop("Argument 'norm_group' should be interpretable as boolean")
   }
-
-  # handle norm_method
-  if (!norm_method %in% c("center", "scale", "standardize", "range") && normalize) {
-    warning('Invalid norm_method - applying default normalization method "range"')
-    norm_method = "range"
-  }
-
-
 
 
   # get spatial data with correct crs
   if (!missing(data)){
     if (inherits(data, "data.frame")){
-      if (all(!c(missing(x), missing(y)))){
-        x_enq = rlang::quo_name(rlang::enquo(x))
-        y_enq = rlang::quo_name(rlang::enquo(y))
+      if (!missing(coords)){
 
-        if (all(c(x_enq, y_enq) %in% colnames(data))){
+        if (all(coords %in% colnames(data))){
 
-          data_proj = start_processing(data = data, x = x_enq,
-                                       y = y_enq, NA_val = NA_val,
+          data_proj = start_processing(data = data, coords = coords, NA_val = NA_val,
                                        env_data = env_data, grid_extent = grid_extent,
-                                       input_crs = input_crs, output_crs = output_crs)
+                                       input_crs = input_crs, output_crs = output_crs,
+                                       verbose = verbose)
         } else {
-          stop("Invalid x or y arguments - x or y are not a column in data")
+          stop("Column name or names in 'coords' argument are not in 'data'")
         }
       } else {
-        stop('Missing x or y arguments for data "data.frame" class')
+        stop('Argument \'coords\' is missing for \'data\' data.frame class - valid \'coords\' argument should be provided')
       }
     } else {
       data_proj = start_processing(data = data, env_data = env_data,
                                    grid_extent = grid_extent, input_crs = input_crs,
-                                   output_crs = output_crs)
+                                   output_crs = output_crs, verbose = verbose)
     }
   } else {
-    stop("Missing data argument - provide valid data argument")
+    stop("Argument 'data' is missing - valid 'data' argument should be provided")
   }
 
   # if time_data remove points with NA time_data
   if (!missing(time_data)){
     time_cname = rlang::quo_name(rlang::enquo(time_data))
     if (!time_cname %in% terra::names(data_proj)){
-      stop("Invalid time_data argument - time_data is not a column name in data")
-    } else if (any(is.na(data_proj[time_cname]))){
+      stop("Column name in 'time_data' argument is not in 'data'")
+    } else if (any(is.na(data_proj[time_cname][[1]]))){
       n_row = nrow(data_proj)
-      data_proj = tidyterra::drop_na(data_proj,  time_cname)
-      message(paste0("Removing points with NA ", time_cname, " values - removing ", n_row - nrow(data_proj), " rows"))
+      data_proj = terra::na.omit(data_proj, time_cname)
+      if (verbose) {
+      number_rows = n_row - nrow(data_proj)
+      warning(paste0("Removed ", number_rows, ifelse(number_rows == 1, " row", " rows"),
+                     " containing NA in 'time_data' column name"))
+      }
     }
   }
 
@@ -160,15 +165,15 @@ exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
     }
     grid_rast = grid_extent
   } else {
-    grid_rast = calc_grid(x = data_proj, cellsize = cellsize,
-                          env_data = env_data, grid_extent = grid_extent)
+    grid_rast = calc_grid(x = data_proj, cellsize = cellsize, env_data = env_data,
+                          grid_extent = grid_extent, verbose = verbose)
   }
 
   # if env_data is vector data - create optional buffer and rasterize to grid raster
   if (!missing(env_data) && inherits(env_data, "SpatVector")) {
 
-    env_data = env_vect(env = env_data, env_buff = env_buff,
-                        env_field = env_field, grid = grid_rast)
+    env_data = env_vect(env = env_data, env_buff = env_buff, env_field = env_field,
+                        grid = grid_rast, verbose = verbose)
   }
 
 
@@ -177,7 +182,6 @@ exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
     env_data_proj = terra::project(env_data, grid_rast)
 
     # replace vals of grid with env values
-    #env_resamp = terra::resample(env_data_proj, grid_rast)
     terra::values(grid_rast) = terra::values(env_data_proj)
   }
 
@@ -188,12 +192,15 @@ exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
     enq_group_split = rlang::quo_name(rlang::enquo(group_split))
     if (enq_group_split %in% terra::names(data_proj)){
       data_iter = terra::split(data_proj, enq_group_split) # split data_proj by group_split
-      message(paste0("Data split by group into ", length(data_iter), " items"))
+      if (verbose) {
+        message(paste0("Data is split into ", length(data_iter), " groups"))
+      }
     } else {
       data_iter = list(data_proj)
-      warning("Invalid group_split argument - group_split is not a column in data. Data not split")
+      if (verbose) {
+        warning("Column name in 'group_split' argument is not in 'data'. 'Data' is not split")
+      }
     }
-
   }
 
 
@@ -208,8 +215,7 @@ exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
     trajectories = terra::vect(trajectories_fun(data_i))
 
     # create buffers over line segments
-    traj_buff = trajectories |>
-      tidyterra::select(line_id) |>
+    traj_buff = trajectories["line_id"] |>
       terra::buffer(bandwidth)
 
 
@@ -217,7 +223,7 @@ exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
 
 
     if (!missing(time_data)){
-      duration_line_id = data_i |>
+      duration_line_id = data_i |> as.data.frame() |>
         dplyr::mutate(time_elapsed = as.numeric(difftime(dplyr::lead(.data[[time_cname]]),
                                                          .data[[time_cname]], units = time_unit)),
                       line_id = dplyr::row_number()) |>
@@ -225,23 +231,24 @@ exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
       # last NA value set to 0 for normalization to not set lowest time value to 0
       duration_line_id$time_elapsed[nrow(duration_line_id)] = 0
 
-      #1st type of normalize - normalize time_elapsed without spatial reference
-      if(normalize && (!norm_group || norm_method != "range" || length(data_iter) == 1)) {
+      if(!missing(normalize) && (!norm_group || normalize != "range" || length(data_iter) == 1)) {
 
-        if (norm_method != "range" && norm_group) {
-          message(paste0('Norm_method is "', norm_method, '" - norm_group is TRUE is applicable only for norm_method "range". Norm group argument ignored. Normalizing each group seperately'))
+        if (normalize != "range" && norm_group && verbose) {
+          message(paste0('Normalization method is "', normalize, '" - \'norm_group\' = TRUE is applicable only for normalization method "range". \'Norm_group\' argument ignored, each group is normalized seperately'))
         }
 
 
         duration_line_id$time_elapsed = normalization(duration_line_id$time_elapsed,
-                                                          method = norm_method)
+                                                          method = normalize)
 
       }
-      duration_df = as.data.frame(duration_line_id)
+      #might use tidyterra for optimisation
 
-      traj_buff = dplyr::left_join(traj_buff, duration_df, by = 'line_id')
-      traj_buff = traj_buff[,-2]
-      names(traj_buff)[2] = "act"
+      line_id_df = as.data.frame(traj_buff)
+      buff_df = dplyr::left_join(line_id_df, duration_line_id, by = 'line_id')
+
+      traj_buff$act = buff_df$time_elapsed
+
 
     }
 
@@ -251,8 +258,8 @@ exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
   #remove empty vector
   buff_svc = buff_svc[-1]
 
-  if(normalize && !missing(time_data) && norm_group && length(data_iter) > 1 &&
-     norm_method == "range"){
+  if(!missing(normalize) && !missing(time_data) && norm_group && length(data_iter) > 1 &&
+     normalize == "range"){
 
     if (length(data_iter) > 1){
 
@@ -261,13 +268,6 @@ exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
       for (i in 1:length(buff_svc)){
         buff_svc[i]$act = buff_svc[i]$act / max_buff
       }
-
-      # buff_list = unlist(vapply(buff_list, function(x) {
-      #   if (!(all(is.na(x$act)))) {
-      #     x$act = x$act / max_buff
-      #   }
-      #   return(list(x))
-      # }, c(new("SpatVectorCollection"))))
     }
   }
 
@@ -284,7 +284,7 @@ exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
       traj_extract = Map(function(x, id) {x$line_id = id
       return(x)}, x = exac_extr, seq_along(exac_extr)) |> dplyr::bind_rows() |>
         dplyr::as_tibble() |>
-        dplyr::relocate(line_id) |>
+        dplyr::relocate(3) |>
         dplyr::rename(e = 2)
 
 
@@ -305,7 +305,8 @@ exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
         dplyr::ungroup()
 
       # join weights with spatial buffer
-      weight_buff = dplyr::inner_join(buff_svc[buff_n], traj_extract_line_id, by = 'line_id')
+
+      weight_buff = terra::merge(buff_svc[buff_n], traj_extract_line_id)
 
       weight_buff$end_weights = weight_buff$end_weights * weight_buff$act
 
@@ -320,7 +321,9 @@ exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
 
   if (!missing(filepath)) { # save raster
     terra::writeRaster(output, filename = filepath)
-    message(paste0("Saving output to ", filepath))
+    if (verbose) {
+      message(paste0("Saving output to ", filepath))
+    }
   }
 
 

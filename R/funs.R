@@ -1,8 +1,8 @@
 
 # handling crs and selecting days from data
 
-start_processing = function(data, x, y, NA_val, env_data, grid_extent,
-                            input_crs, output_crs){
+start_processing = function(data, coords, NA_val, env_data, grid_extent,
+                            input_crs, output_crs, verbose){
 
   # get spatial data
   if (inherits(data, "data.frame")) {
@@ -12,36 +12,44 @@ start_processing = function(data, x, y, NA_val, env_data, grid_extent,
     if (!missing(NA_val)) {
       if (is.numeric(NA_val)){
         n_row = nrow(data)
-        data = data[data[x] != NA_val & data[y] != NA_val,]
-        warning(paste0("Removing rows containing default NA value ",
-                       NA_val, " in x and y columns - removing ", n_row - nrow(data), " rows"))
-      } else {
-        warning("Invalid NA_val argument - NA_val is not numeric. Ignoring NA_val argument")
+        data = dplyr::filter(data, .data[[coords]] != NA_val)
+        data[data[coords[1]] != NA_val & data[coords[2]] != NA_val,] # to improve
+        if (verbose) {
+          number_row = n_row - nrow(data)
+          warning(paste0("Removed ", number_row, ifelse(number_rows == 1, " row", " rows"), " containing default NA value ",
+                         NA_val, " in 'coords' columns names"))
+        }
+      } else if (verbose) {
+        warning("Argument 'NA_val' should be numeric. Ignoring 'NA_val' argument")
       }
 
     }
-    if (any(is.na(data[,c(x,y)]))){
+    if (any(is.na(data[,coords]))){
       n_row_NA = nrow(data)
-      data = tidyr::drop_na(data, x, y)
-      warning(paste0("Removing rows containing NA in x and y columns - removing", n_row_NA - nrow(data), " rows"))
+      data = tidyr::drop_na(data, coords)
+      if (verbose) {
+        n_na_rows = n_row_NA - nrow(data)
+        warning(paste0("Removed ", n_na_rows, ifelse(n_na_rows == 1, " row", " rows"),
+                       " containing NA in 'coords' columns names"))
+      }
 
     }
-    data_points = terra::vect(x = data, geom = c(x, y), crs = input_crs)
+    data_points = terra::vect(x = data, geom = coords, crs = input_crs)
 
   } else if (inherits(data, "sf") && all(sf::st_geometry_type(data) == "POINT")){
     data_points = terra::vect(data)
 
-    if (!missing(input_crs)){
-      warning("Ignoring input_crs argument")
+    if (!missing(input_crs) && verbose){
+      warning("Argument 'input_crs' is ignored")
     }
 
   } else if (inherits(data, "SpatVector") && terra::geomtype(data) == "points") {
     data_points = data
-    if (!missing(input_crs)){
-      warning("Ignoring input_crs argument")
+    if (!missing(input_crs) && verbose){
+      warning("Argument 'input_crs' is ignored")
     }
   } else {
-    stop("Object data is neither data.frame, sf nor SpatVector class")
+    stop("Argument 'data' should be data.frame, sf or SpatVector class")
   }
 
   data_crs = terra::crs(data_points)
@@ -49,30 +57,42 @@ start_processing = function(data, x, y, NA_val, env_data, grid_extent,
   # crs
   if (!missing(output_crs)){
     if (data_crs == "") {
-      message("Setting data crs to output_crs")
+      if (verbose) {
+        message("Setting 'data' CRS to 'output_crs'")
+      }
       terra::crs(data_points) = output_crs
       data_proj = data_points
     } else {
-      message("Projecting data to output_crs")
+      if (verbose) {
+        message("Projecting 'data' to 'output_crs'")
+      }
       data_proj = terra::project(data_points, output_crs)
     }
   } else if (!missing(grid_extent) && inherits(grid_extent, "SpatRaster")) {
     if (data_crs == "") {
-      message("Setting data crs to grid_extent crs")
+      if (verbose) {
+        message("Setting 'data' CRS to 'grid_extent' CRS")
+      }
       terra::crs(data_points) = terra::crs(grid_extent)
       data_proj = data_points
     } else {
-      message("Projecting data to grid_extent crs")
+      if (verbose) {
+        message("Projecting 'data' to 'grid_extent' CRS")
+      }
       data_proj = terra::project(data_points, grid_extent)
     }
   } else if (data_crs != "") { # any invalid/empty crs
     data_proj = data_points
   } else if (!missing(env_data)) {
-    message("Setting data crs to environmental data crs")
+    if (verbose) {
+      message("Setting 'data' CRS to 'env_data' CRS")
+    }
     terra::crs(data_points) = terra::crs(env_data)
     data_proj = data_points
   } else {
-    message("No crs specified")
+    if (verbose) {
+      message("CRS is not specified")
+    }
     data_proj = data_points
   }
   # crop to grid_extent
@@ -91,7 +111,7 @@ start_processing = function(data, x, y, NA_val, env_data, grid_extent,
 
 }
 
-calc_grid = function(x, bandwidth, cellsize, env_data, grid_extent, is_LS = FALSE){
+calc_grid = function(x, bandwidth, cellsize, env_data, grid_extent, is_LS = FALSE, verbose){
 
   if (!missing(grid_extent)){ # grid_extent as ext of grid rast
 
@@ -116,11 +136,13 @@ calc_grid = function(x, bandwidth, cellsize, env_data, grid_extent, is_LS = FALS
     if (suppressWarnings(!is.na(terra::is.lonlat(x)) && terra::is.lonlat(x))){
       # crs units in degrees
       # is.na if empty crs to skip error
-      warning("Cellsize is not stable - cells are not rectangular")
+      if (verbose) {
+        warning("Cellsize is not stable - cells are not rectangular")
+      }
 
-      if (!missing(bandwidth) && bandwidth > 0.1 && !is_LS) {
-        message(paste0("CRS is in lontitude/latitude and bandwidth is ", bandwidth,
-      " - bandwidth is calculated in CRS units. Is bandwidth in correct unit?"))
+      if (!missing(bandwidth) && bandwidth > 0.1 && !is_LS && verbose) {
+        message(paste0("CRS is in lontitude/latitude and 'bandwidth' is ", bandwidth,
+      " - 'bandwidth' is calculated in CRS units. Is 'bandwidth' in correct unit?"))
       }
 
       dist_lon = geosphere::distm(c(extent[1], extent[3]), c(extent[2], extent[3]),
@@ -142,8 +164,9 @@ calc_grid = function(x, bandwidth, cellsize, env_data, grid_extent, is_LS = FALS
     }
 
   } else if  (!missing(env_data) && inherits(env_data, "SpatRaster")){ #if incorrect cellsize and env_data exists
-    warning("Cellsize invalid or not set - using cellsize from env_data")
-
+    if (verbose) {
+      warning("Argument 'cellsize' should be positive and single numeric value - cellsize from 'env_data' was used")
+    }
     if (terra::linearUnits(env_data) == terra::linearUnits(x)){
       # project env data with the same cellsize
       env_data_proj = terra::project(env_data, terra::crs(x), res = terra::res(env_data)[1])
@@ -162,14 +185,14 @@ calc_grid = function(x, bandwidth, cellsize, env_data, grid_extent, is_LS = FALS
       terra::ext(grid_rast) = extent
     }
   } else {
-    stop("Invalid or missing cellsize - provide valid cellsize or env_data")
+    stop("Argument 'cellsize' should be positive and single numeric value - valid 'cellsize' or 'env_data' argument should be provided")
   }
   return(grid_rast)
 }
 
 # transform env_data SpatVector to env_data SpatRaster
 
-env_vect = function(env, env_buff, env_field, grid){
+env_vect = function(env, env_buff, env_field, grid, verbose){
 
   if (!missing(env_buff)) { # create buffer around vector data
     if (length(env_buff) == 1 && is.numeric(env_buff) && env_buff > 0){
@@ -179,8 +202,8 @@ env_vect = function(env, env_buff, env_field, grid){
       ## TEMPORARY FIX: USE SF::ST_BUFFER
       env = env_proj |> sf::st_as_sf() |> sf::st_buffer(env_buff) |> terra::vect()
 
-    } else {
-      warning("Invalid env_buff argument - ignoring creation of buffer")
+    } else if (verbose) {
+      warning("Argument 'env_buff' should be positive and single numeric value - creation of buffer was ignored")
     }
   }
 
@@ -189,7 +212,9 @@ env_vect = function(env, env_buff, env_field, grid){
     if (env_f_quo %in% terra::names(env)){
       env = terra::rasterize(env, grid, field = env_f_quo, fun = "sum")
     } else {
-      warning("Invalid env_field argument - env_field is not a column name in data. Ignoring env_field argument")
+      if (verbose) {
+        warning("Column name in 'env_field' argument is not in 'data'. Argument 'env_field' was ignored")
+      }
       env = terra::rasterize(env, grid, fun = "sum")
     }
   } else {
@@ -225,9 +250,9 @@ normalization = function(data, method, range = c(0, 1)){
            #   diff(terra::minmax(data, na.rm = TRUE)) * diff(range) + range[1L],
            #without range arg
            range = data / max(data, na.rm = TRUE),
-           standardize = scale(x, center = TRUE, scale = TRUE),
-           center = scale(x, center = TRUE, scale = FALSE),
-           scale = scale(x, center = FALSE, scale = sd(x, na.rm = TRUE))
+           standardize = scale(data, center = TRUE, scale = TRUE),
+           center = scale(data, center = TRUE, scale = FALSE),
+           scale = scale(data, center = FALSE, scale = stats::sd(data, na.rm = TRUE))
     )
   } else {
     switch(method,

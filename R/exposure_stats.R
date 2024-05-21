@@ -3,9 +3,12 @@
 #' @description
 #' Calculate statistics dataframe from multiple SpatRasters
 #'
+#' For exposure methods see: [exposure_PO()], [exposure_KDE()], [exposure_DR()], [exposure_LS()]
+#'
 #' @param ... SpatRaster objects to calculate statistics on
 #' @param stats vector of statistics to be calculated. See terra::global() for more details. Added "range", "count" and "area".
 #' @param row_names vector the same length as number of ... arguments specifying row names of output data.frame. If NULL row names are ... arguments, values without argument specified will be numbered row-wise.
+#' @param verbose Boolean. If TRUE amount of output is reduced.
 #'
 #' @return Data.frame of length(stats) columns and ... rows
 #'
@@ -14,7 +17,7 @@
 #'
 #' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 #'
-#' exposure = exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE,
+#' exposure = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
 #'                        input_crs = "EPSG:4326", output_crs = "EPSG:32611")
 #' # no names
 #' exposure_stats(ndvi_data, exposure, stats = statistics)
@@ -27,21 +30,25 @@
 #'
 #' @export
 
-exposure_stats =  function(..., stats, row_names = NULL){
+exposure_stats =  function(..., stats, row_names = NULL, verbose = TRUE){
 
   elipsis_list = list(...)
   el_class = sapply(elipsis_list, class)
   if (!all(el_class == "SpatRaster")){
     if (any(el_class == "SpatRaster")){
-      warning("Skipping not SpatRaster class arguments")
+      if (verbose){
+        warning("Elipsis (...) arguments should be SpatRaster class. Skipping not SpatRaster class arguments")
+      }
       elipsis_list = elipsis_list[el_class == "SpatRaster"]
     } else {
-      stop("None of arguments is SpatRaster class")
+      stop("Any of elipsis (...) arguments should be SpatRaster class")
     }
   }
 
   if (any(sapply(elipsis_list, function(x) {terra::crs(x)}) == "")  && "area" %in% stats) { # when
-    warning("Empty crs of one of arguments - area statistic will not be calculated")
+    if (verbose){
+      warning("Empty CRS of one of elipsis (...) arguments - area statistic will not be calculated")
+    }
     stats = stats[!stats == "area"]
   }
   if (missing(stats) || length(stats) == 0){
@@ -76,8 +83,8 @@ exposure_stats =  function(..., stats, row_names = NULL){
     rownames(df) = el_names
   } else if (length(row_names) == length(elipsis_list)) {
     rownames(df) = row_names
-  } else {
-    warning("Incorrect length of row_names argument - default output row names")
+  } else if (verbose){
+    warning("Argumments 'row_names' argument should be same length as number of elipsis (...) arguments - row names were set to default")
   }
 
 

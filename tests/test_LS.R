@@ -87,7 +87,7 @@ test_exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
       stop("Invalid time_data argument - time_data is not a column name in data")
     } else if (any(is.na(data_proj[time_cname]))){
       n_row = nrow(data_proj)
-      data_proj = tidyterra::drop_na(data_proj,  time_cname)
+      data_proj = terra::na.omit(data_proj, time_cname)
       message(paste0("Removing points with NA ", time_cname, " values - removing ", n_row - nrow(data_proj), " rows"))
     }
   }
@@ -134,17 +134,6 @@ test_exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
 
   }
 
-  if (length(data_iter) > 1 && !missing(filepath)) {
-    # list output
-
-    # for iterating file names
-    file_ext = stringi::stri_extract(filepath, regex = "\\.(\\w+)$")
-    file_no_ext = substr(filepath, 1, nchar(filepath) - nchar(file_ext))
-
-    file_vect = rep(file_no_ext, length.out = length(data_iter))
-    file_vect = paste0(file_vect, "_", seq_along(file_vect), file_ext)
-  }
-
   buff_list = list()
   output = list()
 
@@ -156,8 +145,7 @@ test_exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
     trajectories = terra::vect(trajectories_fun(data_i))
 
     # create buffers over line segments
-    traj_buff = trajectories |>
-      tidyterra::select(line_id) |>
+    traj_buff = trajectories["line_id"] |>
       terra::buffer(bandwidth)
 
 
@@ -165,7 +153,7 @@ test_exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
 
 
     if (!missing(time_data)){
-      duration_line_id = data_i |>
+      duration_line_id = data_i |> as.data.frame() |>
         dplyr::mutate(time_elapsed = as.numeric(difftime(dplyr::lead(.data[[time_cname]]),
                                                          .data[[time_cname]], units = time_unit)),
                       line_id = dplyr::row_number()) |>
@@ -181,15 +169,15 @@ test_exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
         }
 
 
-        duration_line_id$time_elapsed = BBmisc::normalize(duration_line_id$time_elapsed,
-                                                          method = norm_method, margin = 1L)
+        duration_line_id$time_elapsed = normalization(duration_line_id$time_elapsed,
+                                                      method = norm_method)
 
       }
-      duration_df = as.data.frame(duration_line_id)
+      #might use tidyterra for optimisation
+      line_id_df = as.data.frame(traj_buff)
+      buff_df = dplyr::left_join(line_id_df, duration_line_id, by = 'line_id')
 
-      traj_buff = dplyr::left_join(traj_buff, duration_df, by = 'line_id')
-      traj_buff = traj_buff[,-2]
-      names(traj_buff)[2] = "act"
+      traj_buff$act = buff_df$time_elapsed
 
     }
 
@@ -205,9 +193,7 @@ test_exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
       max_buff = (do.call(rbind, buff_list))$act |> max(na.rm = TRUE)
       buff_list = sapply(buff_list, function(x) {
         if (!(all(is.na(x$act)))) {
-          x$act = BBmisc::normalize(x$act, method = "range",
-                                    margin = 2L,
-                                    range = c(min(x$act, na.rm = TRUE) / max_buff, max(x$act, na.rm = TRUE) / max_buff))
+          x$act = x$act / max_buff
         }
         return(x)
       })
@@ -245,7 +231,7 @@ test_exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
         dplyr::ungroup()
 
       # join weights with spatial buffer
-      weight_buff = dplyr::inner_join(buff, traj_extract_line_id, by = 'line_id')
+      weight_buff = terra::merge(buff_svc[buff_n], traj_extract_line_id)
 
       weight_buff$end_weights = weight_buff$end_weights * weight_buff$act
 
@@ -258,18 +244,8 @@ test_exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
   }
 
   if (!missing(filepath)) { # save raster
-    if (length(data_iter) > 1){ # update filepath
-
-      mapply(function(x, y) {
-        terra::writeRaster(x, filename = y)
-        message(paste0("Saving output to ", y))
-      }, x = output, y = file_vect)
-
-    } else {
-
-      terra::writeRaster(end_rast, filename = filepath)
-      message(paste0("Saving output to ", filepath))
-    }
+    terra::writeRaster(output, filename = filepath)
+    message(paste0("Saving output to ", filepath))
   }
 
 
@@ -536,9 +512,9 @@ normalization = function(data, method, range = c(0, 1)){
            #   diff(terra::minmax(data, na.rm = TRUE)) * diff(range) + range[1L],
            #without range arg
            range = data / max(data, na.rm = TRUE),
-           standardize = scale(x, center = TRUE, scale = TRUE),
-           center = scale(x, center = TRUE, scale = FALSE),
-           scale = scale(x, center = FALSE, scale = sd(x, na.rm = TRUE))
+           standardize = scale(data, center = TRUE, scale = TRUE),
+           center = scale(data, center = TRUE, scale = FALSE),
+           scale = scale(data, center = FALSE, scale = stats::sd(data, na.rm = TRUE))
     )
   } else {
     switch(method,
@@ -552,9 +528,8 @@ normalization = function(data, method, range = c(0, 1)){
     )
   }
 }
-
 testthat::test_that("exposure_LS normalize range", {
-  LS_test = exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+  LS_test = exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                         time_data = dateTime, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   LS =  test_exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                          time_data = dateTime, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -562,7 +537,7 @@ testthat::test_that("exposure_LS normalize range", {
 })
 
 testthat::test_that("exposure_LS normalize center", {
-  LS_test = twiGPS::exposure_LS(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
+  LS_test =  exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "center",
                                 time_data = dateTime, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   LS =  test_exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
                          time_data = dateTime, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -570,7 +545,7 @@ testthat::test_that("exposure_LS normalize center", {
 })
 
 testthat::test_that("exposure_LS normalize scale", {
-  LS_test = twiGPS::exposure_LS(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
+  LS_test =  exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "scale",
                                 time_data = dateTime, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   LS =  test_exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
                          time_data = dateTime, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -578,7 +553,7 @@ testthat::test_that("exposure_LS normalize scale", {
 })
 
 testthat::test_that("exposure_LS normalize standardize", {
-  LS_test = twiGPS::exposure_LS(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
+  LS_test =  exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "standardize",
                                 time_data = dateTime, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   LS =  test_exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
                          time_data = dateTime, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -586,7 +561,7 @@ testthat::test_that("exposure_LS normalize standardize", {
 })
 
 testthat::test_that("exposure_LS normalize range groups", {
-  LS_test = exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+  LS_test = exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                         time_data = dateTime, bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   LS =  test_exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                          time_data = dateTime, bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -594,7 +569,7 @@ testthat::test_that("exposure_LS normalize range groups", {
 })
 
 testthat::test_that("exposure_LS normalize range groups", {
-  LS_test = exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+  LS_test = exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                         time_data = dateTime, bandwidth = 200, norm_group = TRUE, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   LS =  test_exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                          time_data = dateTime, bandwidth = 200, norm_group = TRUE, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -602,7 +577,7 @@ testthat::test_that("exposure_LS normalize range groups", {
 })
 
 testthat::test_that("exposure_LS normalize center groups", {
-  LS_test = twiGPS::exposure_LS(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
+  LS_test =  exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "center",
                                 time_data = dateTime, bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   LS =  test_exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
                          time_data = dateTime, bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -610,7 +585,7 @@ testthat::test_that("exposure_LS normalize center groups", {
 })
 
 testthat::test_that("exposure_LS normalize scale groups", {
-  LS_test = twiGPS::exposure_LS(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
+  LS_test =  exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "scale",
                                 time_data = dateTime, bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   LS =  test_exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
                          time_data = dateTime, bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -618,7 +593,7 @@ testthat::test_that("exposure_LS normalize scale groups", {
 })
 
 testthat::test_that("exposure_LS normalize standardize groups", {
-  LS_test = twiGPS::exposure_LS(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
+  LS_test =  exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "standardize",
                                 time_data = dateTime, bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   LS =  test_exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
                          time_data = dateTime, bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -628,7 +603,7 @@ testthat::test_that("exposure_LS normalize standardize groups", {
 testthat::test_that("exposure_LS env_data", {
   ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 
-  LS_test = twiGPS::exposure_LS(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50,
+  LS_test =  exposure_LS(data = geolife_sandiego ,coords = c("lon", "lat"), cellsize = 50,
                                 time_data = dateTime, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611", env_data = ndvi_data)
   LS =  test_exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50,
                          time_data = dateTime, bandwidth = 200, env_data = ndvi_data, input_crs = "EPSG:4326", output_crs = "EPSG:32611")

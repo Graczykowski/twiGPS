@@ -138,12 +138,10 @@ test_exposure_PO = function(data, x, y, NA_val, cellsize, group_split, env_data,
       # calculate normalization to 0-1 range
       if (norm_method == "range"){
         rast_points = terra::subst(rast_points, from = NA, to = 0)
-        terra::values(rast_points) = BBmisc::normalize(terra::values(rast_points),
-                                                       method = norm_method, margin = 2L)
+        rast_points = normalization(rast_points, method = norm_method)
         rast_points = terra::subst(rast_points, from = 0, to = NA)
       } else {
-        terra::values(rast_points) = BBmisc::normalize(terra::values(rast_points),
-                                                       method = norm_method, margin = 2L)
+        rast_points = normalization(rast_points, method = norm_method)
       }
     }
 
@@ -416,9 +414,9 @@ normalization = function(data, method, range = c(0, 1)){
            #   diff(terra::minmax(data, na.rm = TRUE)) * diff(range) + range[1L],
            #without range arg
            range = data / max(data, na.rm = TRUE),
-           standardize = scale(x, center = TRUE, scale = TRUE),
-           center = scale(x, center = TRUE, scale = FALSE),
-           scale = scale(x, center = FALSE, scale = sd(x, na.rm = TRUE))
+           standardize = scale(data, center = TRUE, scale = TRUE),
+           center = scale(data, center = TRUE, scale = FALSE),
+           scale = scale(data, center = FALSE, scale = stats::sd(data, na.rm = TRUE))
     )
   } else {
     switch(method,
@@ -432,9 +430,8 @@ normalization = function(data, method, range = c(0, 1)){
     )
   }
 }
-
 testthat::test_that("exposure_PO normalize range", {
-  PO_test = exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+  PO_test = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                    input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   PO =  test_exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                     input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -442,7 +439,7 @@ testthat::test_that("exposure_PO normalize range", {
 })
 
 testthat::test_that("exposure_PO normalize center", {
-  PO_test = twiGPS::exposure_PO(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
+  PO_test = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "center",
                         input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   PO =  test_exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
                          input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -450,7 +447,7 @@ testthat::test_that("exposure_PO normalize center", {
 })
 
 testthat::test_that("exposure_PO normalize scale", {
-  PO_test = twiGPS::exposure_PO(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
+  PO_test = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "scale",
                         input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   PO =  test_exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
                          input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -458,7 +455,7 @@ testthat::test_that("exposure_PO normalize scale", {
 })
 
 testthat::test_that("exposure_PO normalize standardize", {
-  PO_test = twiGPS::exposure_PO(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
+  PO_test = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "standardize",
                         input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   PO =  test_exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
                          input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -467,7 +464,7 @@ testthat::test_that("exposure_PO normalize standardize", {
 
 
 testthat::test_that("exposure_PO normalize range groups", {
-  PO_test = exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+  PO_test = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                         group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   PO =  test_exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                          group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -475,7 +472,7 @@ testthat::test_that("exposure_PO normalize range groups", {
 })
 
 testthat::test_that("exposure_PO normalize range groups", {
-  PO_test = exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+  PO_test = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                         norm_group = TRUE, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   PO =  test_exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                          norm_group = TRUE, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -483,7 +480,7 @@ testthat::test_that("exposure_PO normalize range groups", {
 })
 
 testthat::test_that("exposure_PO normalize center groups", {
-  PO_test = twiGPS::exposure_PO(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
+  PO_test = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "center",
                                 group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   PO =  test_exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
                          group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -491,7 +488,7 @@ testthat::test_that("exposure_PO normalize center groups", {
 })
 
 testthat::test_that("exposure_PO normalize scale groups", {
-  PO_test = twiGPS::exposure_PO(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
+  PO_test = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "scale",
                                 group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   PO =  test_exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
                          group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -499,7 +496,7 @@ testthat::test_that("exposure_PO normalize scale groups", {
 })
 
 testthat::test_that("exposure_PO normalize standardize groups", {
-  PO_test = twiGPS::exposure_PO(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
+  PO_test = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "standardize",
                                 group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   PO =  test_exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
                          group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -509,7 +506,7 @@ testthat::test_that("exposure_PO normalize standardize groups", {
 testthat::test_that("exposure_PO env_data", {
   ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 
-  PO_test = twiGPS::exposure_PO(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50,
+  PO_test = twiGPS::exposure_PO(data = twiGPS::geolife_sandiego, coords = c("lon", "lat"), cellsize = 50,
                                  input_crs = "EPSG:4326", output_crs = "EPSG:32611", env_data = ndvi_data)
   PO =  test_exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50,
                          env_data = ndvi_data, input_crs = "EPSG:4326", output_crs = "EPSG:32611")

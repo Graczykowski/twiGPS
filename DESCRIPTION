@@ -21,11 +21,9 @@ Imports:
   dplyr,
   geosphere,
   tidyr,
-  tidyterra,
   stats,
-  stringi,
-  BBmisc,
   exactextractr,
+  rlang,
   testthat
 URL: https://github.com/Graczykowski/twiGPS
 BugReports: https://github.com/Graczykowski/twiGPS/issues

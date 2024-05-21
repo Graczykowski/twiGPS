@@ -149,8 +149,7 @@ test_exposure_DR = function(data, x, y, NA_val, cellsize, group_split, bandwidth
         message(paste0('Norm_method is "', norm_method, '" - norm_group is TRUE is applicable only for norm_method "range". Norm group argument ignored. Normalizing each group seperately'))
       }
       # calculate normalization to 0-1 range
-      terra::values(dr_rast) = BBmisc::normalize(terra::values(dr_rast),
-                                                 method = norm_method, margin = 2L)
+      dr_rast = normalization(dr_rast, method = norm_method)
 
     }
 
@@ -414,9 +413,9 @@ normalization = function(data, method, range = c(0, 1)){
            #   diff(terra::minmax(data, na.rm = TRUE)) * diff(range) + range[1L],
            #without range arg
            range = data / max(data, na.rm = TRUE),
-           standardize = scale(x, center = TRUE, scale = TRUE),
-           center = scale(x, center = TRUE, scale = FALSE),
-           scale = scale(x, center = FALSE, scale = sd(x, na.rm = TRUE))
+           standardize = scale(data, center = TRUE, scale = TRUE),
+           center = scale(data, center = TRUE, scale = FALSE),
+           scale = scale(data, center = FALSE, scale = stats::sd(data, na.rm = TRUE))
     )
   } else {
     switch(method,
@@ -531,7 +530,7 @@ spat_dr = function(x, ref, bw) {
 }
 
 testthat::test_that("exposure_DR normalize range", {
- DR_test = exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+ DR_test =  exposure_DR(data = geolife_sandiego ,coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -539,7 +538,7 @@ testthat::test_that("exposure_DR normalize range", {
 })
 
 testthat::test_that("exposure_DR normalize center", {
- DR_test = twiGPS::exposure_DR(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
+ DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "center",
                                bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -547,7 +546,7 @@ testthat::test_that("exposure_DR normalize center", {
 })
 
 testthat::test_that("exposure_DR normalize scale", {
- DR_test = twiGPS::exposure_DR(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
+ DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "scale",
                                bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -555,7 +554,7 @@ testthat::test_that("exposure_DR normalize scale", {
 })
 
 testthat::test_that("exposure_DR normalize standardize", {
- DR_test = twiGPS::exposure_DR(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
+ DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "standardize",
                                bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -564,7 +563,7 @@ testthat::test_that("exposure_DR normalize standardize", {
 
 
 testthat::test_that("exposure_DR normalize range groups", {
- DR_test = exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+ DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                        bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                         bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -572,7 +571,7 @@ testthat::test_that("exposure_DR normalize range groups", {
 })
 
 testthat::test_that("exposure_DR normalize range groups", {
- DR_test = exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+ DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                        bandwidth = 200, norm_group = TRUE, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                         bandwidth = 200, norm_group = TRUE, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -580,7 +579,7 @@ testthat::test_that("exposure_DR normalize range groups", {
 })
 
 testthat::test_that("exposure_DR normalize center groups", {
- DR_test = twiGPS::exposure_DR(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
+ DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "center",
                                bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
                         bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -588,7 +587,7 @@ testthat::test_that("exposure_DR normalize center groups", {
 })
 
 testthat::test_that("exposure_DR normalize scale groups", {
- DR_test = twiGPS::exposure_DR(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
+ DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "scale",
                                bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
                         bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -596,7 +595,7 @@ testthat::test_that("exposure_DR normalize scale groups", {
 })
 
 testthat::test_that("exposure_DR normalize standardize groups", {
- DR_test = twiGPS::exposure_DR(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
+ DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "standardize",
                                bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
                         bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -606,7 +605,7 @@ testthat::test_that("exposure_DR normalize standardize groups", {
 testthat::test_that("exposure_DR env_data", {
   ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 
- DR_test = twiGPS::exposure_DR(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50,
+ DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50,
                                bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611", env_data = ndvi_data)
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50,
                         bandwidth = 200, env_data = ndvi_data, input_crs = "EPSG:4326", output_crs = "EPSG:32611")

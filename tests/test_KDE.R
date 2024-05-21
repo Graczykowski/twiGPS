@@ -149,8 +149,7 @@ test_exposure_KDE = function(data, x, y, NA_val, cellsize, group_split, bandwidt
         message(paste0('Norm_method is "', norm_method, '" - norm_group is TRUE is applicable only for norm_method "range". Norm group argument ignored. Normalizing each group seperately'))
       }
       # calculate normalization
-      terra::values(kde_rast) = BBmisc::normalize(terra::values(kde_rast),
-                                                  method = norm_method, margin = 2L)
+      kde_rast = normalization(kde_rast, method = norm_method)
 
     }
 
@@ -417,9 +416,9 @@ normalization = function(data, method, range = c(0, 1)){
            #   diff(terra::minmax(data, na.rm = TRUE)) * diff(range) + range[1L],
            #without range arg
            range = data / max(data, na.rm = TRUE),
-           standardize = scale(x, center = TRUE, scale = TRUE),
-           center = scale(x, center = TRUE, scale = FALSE),
-           scale = scale(x, center = FALSE, scale = sd(x, na.rm = TRUE))
+           standardize = scale(data, center = TRUE, scale = TRUE),
+           center = scale(data, center = TRUE, scale = FALSE),
+           scale = scale(data, center = FALSE, scale = stats::sd(data, na.rm = TRUE))
     )
   } else {
     switch(method,
@@ -500,7 +499,7 @@ kde = function(points, ref_uq_x, ref_uq_y, bw) {
 }
 
 testthat::test_that("exposure_KDE normalize range", {
-  KDE_test = exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+  KDE_test =  exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                          bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -508,7 +507,7 @@ testthat::test_that("exposure_KDE normalize range", {
 })
 
 testthat::test_that("exposure_KDE normalize center", {
-  KDE_test = twiGPS::exposure_KDE(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
+  KDE_test =  exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "center",
                                 bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
                          bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -516,7 +515,7 @@ testthat::test_that("exposure_KDE normalize center", {
 })
 
 testthat::test_that("exposure_KDE normalize scale", {
-  KDE_test = twiGPS::exposure_KDE(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
+  KDE_test =  exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "scale",
                                 bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
                          bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -524,7 +523,7 @@ testthat::test_that("exposure_KDE normalize scale", {
 })
 
 testthat::test_that("exposure_KDE normalize standardize", {
-  KDE_test = twiGPS::exposure_KDE(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
+  KDE_test =  exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "standardize",
                                 bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
                          bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -533,7 +532,7 @@ testthat::test_that("exposure_KDE normalize standardize", {
 
 
 testthat::test_that("exposure_KDE normalize range groups", {
-  KDE_test = exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+  KDE_test = exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                         bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                          bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -541,7 +540,7 @@ testthat::test_that("exposure_KDE normalize range groups", {
 })
 
 testthat::test_that("exposure_KDE normalize range groups", {
-  KDE_test = exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+  KDE_test = exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                         bandwidth = 200, norm_group = TRUE, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                          bandwidth = 200, norm_group = TRUE, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -549,7 +548,7 @@ testthat::test_that("exposure_KDE normalize range groups", {
 })
 
 testthat::test_that("exposure_KDE normalize center groups", {
-  KDE_test = twiGPS::exposure_KDE(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
+  KDE_test =  exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "center",
                                 bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
                          bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -557,7 +556,7 @@ testthat::test_that("exposure_KDE normalize center groups", {
 })
 
 testthat::test_that("exposure_KDE normalize scale groups", {
-  KDE_test = twiGPS::exposure_KDE(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
+  KDE_test =  exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "scale",
                                 bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
                          bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -565,7 +564,7 @@ testthat::test_that("exposure_KDE normalize scale groups", {
 })
 
 testthat::test_that("exposure_KDE normalize standardize groups", {
-  KDE_test = twiGPS::exposure_KDE(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
+  KDE_test =  exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "standardize",
                                 bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
                          bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
@@ -575,7 +574,7 @@ testthat::test_that("exposure_KDE normalize standardize groups", {
 testthat::test_that("exposure_KDE env_data", {
   ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 
-  KDE_test = twiGPS::exposure_KDE(data = twiGPS::geolife_sandiego, x = lon, y = lat, cellsize = 50,
+  KDE_test =  exposure_KDE(data = geolife_sandiego ,coords = c("lon", "lat"), cellsize = 50,
                                 bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611", env_data = ndvi_data)
   KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50,
                          bandwidth = 200, env_data = ndvi_data, input_crs = "EPSG:4326", output_crs = "EPSG:32611")

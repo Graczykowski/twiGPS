@@ -4,7 +4,7 @@
 \alias{exposure_stats}
 \title{Exposure statistics}
 \usage{
-exposure_stats(..., stats, row_names = NULL)
+exposure_stats(..., stats, row_names = NULL, verbose = TRUE)
 }
 \arguments{
 \item{...}{SpatRaster objects to calculate statistics on}
@@ -12,19 +12,23 @@ exposure_stats(..., stats, row_names = NULL)
 \item{stats}{vector of statistics to be calculated. See terra::global() for more details. Added "range", "count" and "area".}
 
 \item{row_names}{vector the same length as number of ... arguments specifying row names of output data.frame. If NULL row names are ... arguments, values without argument specified will be numbered row-wise.}
+
+\item{verbose}{Boolean. If TRUE amount of output is reduced.}
 }
 \value{
 Data.frame of length(stats) columns and ... rows
 }
 \description{
 Calculate statistics dataframe from multiple SpatRasters
+
+For exposure methods see: \code{\link[=exposure_PO]{exposure_PO()}}, \code{\link[=exposure_KDE]{exposure_KDE()}}, \code{\link[=exposure_DR]{exposure_DR()}}, \code{\link[=exposure_LS]{exposure_LS()}}
 }
 \examples{
 statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
 
 ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 
-exposure = exposure_PO(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE,
+exposure = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                        input_crs = "EPSG:4326", output_crs = "EPSG:32611")
 # no names
 exposure_stats(ndvi_data, exposure, stats = statistics)

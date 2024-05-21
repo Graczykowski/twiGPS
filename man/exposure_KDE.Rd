@@ -6,58 +6,55 @@
 \usage{
 exposure_KDE(
   data,
-  x,
-  y,
-  NA_val,
-  cellsize,
-  group_split,
+  coords,
   bandwidth,
+  cellsize,
   env_data,
+  output_crs,
+  input_crs,
+  grid_extent,
+  normalize,
+  group_split,
+  norm_group = FALSE,
+  filepath,
+  NA_val,
   env_field,
   env_buff,
-  normalize = FALSE,
-  norm_method = "range",
-  norm_group = FALSE,
-  grid_extent,
-  input_crs,
-  output_crs,
-  filepath
+  verbose = TRUE
 )
 }
 \arguments{
 \item{data}{Data.frame, SpatVector points or sf data.frame containing only POINTS.}
 
-\item{x}{Data masking. x or longitude coordinates column name if data is a data.frame.}
-
-\item{y}{Data masking. y or latitude coordinates column name if data is a data.frame.}
-
-\item{NA_val}{Numeric. Value in x and y marked as NA if data is a data.frame.}
-
-\item{cellsize}{Positive numeric. Size of raster cells in meters if output has a longtitude/latitude CRS or in the units of output CRS.}
-
-\item{group_split}{Data masking. Column of data based on which it is grouped and split. For n groups output will be n SpatRasters.}
+\item{coords}{Character. Vector of column names of x and y coordinates if data is a data.frame.}
 
 \item{bandwidth}{Positive numeric. Bandwidth in units of output Coordinate Reference System.}
 
+\item{cellsize}{Positive numeric. Size of raster cells in meters if output has a longtitude/latitude CRS or in the units of output CRS.}
+
 \item{env_data}{Stars, SpatRaster, SpatVector or sf. Spatial environmental data. Activity space is calculated when not set. When argument is a SpatVector or sf object vector data is rasterized to output raster using "sum" function.}
+
+\item{output_crs}{Character or terra crs object. Coordinate Reference System of output. If not set and env_data is a SpatRaster env_data's CRS is used.}
+
+\item{input_crs}{Character or terra crs object. Coordinate Reference System of data's coordinates if data is a data.frame.}
+
+\item{grid_extent}{Stars, SpatRaster, SpatExtent, sf bbox object or numeric vector of 4 length c(xmin, xmax, ymin, ymax). If stars or SpatRaster grid_extent is output's grid and cellsize argument is ignored. If SpatExtent, sf bbox object or vector grid_extent is output's extent. If cellsize is set it is preserved at the cost of extent.}
+
+\item{normalize}{Character. If not empty activity space SpatRaster is normalized with specified method. Four methods - "center", "scale", "standardize" and "range". Default is "range". See BBmisc::normalize().}
+
+\item{group_split}{Data masking. Column of data based on which it is grouped and split. For n groups output will be n SpatRasters.}
+
+\item{norm_group}{Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is normalized seperately. If TRUE SpatRasters are normalized to SpatRaster with highest max value.}
+
+\item{filepath}{Character. Output filename. See terra::writeRaster().}
+
+\item{NA_val}{Numeric. Value in x and y marked as NA if data is a data.frame.}
 
 \item{env_field}{Data masking. Column of env_data that env_data will be rasterized on. Ignored if env_data not a SpatVector or sf class.}
 
 \item{env_buff}{Positive numeric. Optional buffer around SpatVector/sf env_data in meters if output has a longtitude/latitude CRS or in the units of the CRS. See terra::buffer(). Ignored if env_data not a SpatVector or sf class.}
 
-\item{normalize}{Boolean. If TRUE activity space SpatRaster is normalized}
-
-\item{norm_method}{Character. Normalization method. Four methods - "center", "scale", "standardize" and "range". Default is "range". See BBmisc::normalize().}
-
-\item{norm_group}{Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is normalized seperately. If TRUE SpatRasters are normalized to SpatRaster with highest max value.}
-
-\item{grid_extent}{Stars, SpatRaster, SpatExtent, sf bbox object or numeric vector of 4 length c(xmin, xmax, ymin, ymax). If stars or SpatRaster grid_extent is output's grid and cellsize argument is ignored. If SpatExtent, sf bbox object or vector grid_extent is output's extent. If cellsize is set it is preserved at the cost of extent.}
-
-\item{input_crs}{Character or terra crs object. Coordinate Reference System of data's coordinates if data is a data.frame.}
-
-\item{output_crs}{Character or terra crs object. Coordinate Reference System of output. If not set and env_data is a SpatRaster env_data's CRS is used.}
-
-\item{filepath}{Character. Output filename. See terra::writeRaster().}
+\item{verbose}{Boolean. If TRUE amount of output is reduced.}
 }
 \value{
 SpatRaster
@@ -65,39 +62,41 @@ SpatRaster
 \description{
 Kernel Density Estimation method activity space and environmental exposure. Using spat_kde() function based on Silverman, B. W. 1986.
 In order to receive activity space ignore env_data argument.
+
+For other exposure methods see: \code{\link[=exposure_PO]{exposure_PO()}}, \code{\link[=exposure_DR]{exposure_DR()}}, \code{\link[=exposure_LS]{exposure_LS()}}
+
+For calculating statistics of output raster use \code{\link[=exposure_stats]{exposure_stats()}}
 }
 \examples{
-
-
-
 # activity space
-exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, bandwidth = 200,
- normalize = TRUE, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), bandwidth = 200,
+  cellsize = 50, output_crs = "EPSG:32611", input_crs = "EPSG:4326",
+  normalize = "range", verbose = FALSE)
 
 # split by date
-exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, group_split = date,
-   bandwidth = 200, normalize = TRUE, norm_group = FALSE, input_crs = "EPSG:4326",
-   output_crs = "EPSG:32611")
+exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), bandwidth = 200,
+  cellsize = 50, normalize = "range", group_split = date, norm_group = FALSE,
+  output_crs = "EPSG:32611", input_crs = "EPSG:4326", verbose = FALSE)
 
 # split by date and define extent
 extent = c(478000, 484000, 3618000, 3627000)
 
-exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, group_split = date,
-  bandwidth = 200, normalize = TRUE,norm_group = TRUE, grid_extent = extent,
-  input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), bandwidth = 200,
+  cellsize = 50, output_crs = "EPSG:32611", input_crs = "EPSG:4326",
+  grid_extent = extent, normalize = "range", group_split = date,
+  norm_group = TRUE, verbose = FALSE)
 
 #environmental exposure
 
 ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 
-exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, bandwidth = 200,
-  env_data = ndvi_data, normalize = FALSE, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), bandwidth = 200,
+  cellsize = 50, env_data = ndvi_data, output_crs = "EPSG:32611",
+ input_crs = "EPSG:4326", verbose = FALSE)
 
 # environmental exposure - use rast grid and split by date
-exposure_KDE(data = geolife_sandiego, x = lon, y = lat, group_split = date,
-  bandwidth = 200, env_data = ndvi_data, normalize = TRUE, norm_group = TRUE,
-  grid_extent = ndvi_data, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
-
-
-
+exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), bandwidth = 200,
+  cellsize = 50, env_data = ndvi_data, output_crs = "EPSG:32611",
+  input_crs = "EPSG:4326", grid_extent = ndvi_data, normalize = "range",
+  group_split = date, norm_group = TRUE, verbose = FALSE)
 }
