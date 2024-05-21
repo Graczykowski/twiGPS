@@ -17,16 +17,14 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
 Imports:
   terra,
-  raster,
   sf,
   dplyr,
   geosphere,
   tidyr,
-  tidyterra,
   stats,
-  stringi,
-  BBmisc,
-  exactextractr
+  exactextractr,
+  rlang,
+  testthat
 URL: https://github.com/Graczykowski/twiGPS
 BugReports: https://github.com/Graczykowski/twiGPS/issues
 Depends: 

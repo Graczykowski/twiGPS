@@ -4,3 +4,5 @@ export(exposure_DR)
 export(exposure_KDE)
 export(exposure_LS)
 export(exposure_PO)
+export(exposure_stats)
+
