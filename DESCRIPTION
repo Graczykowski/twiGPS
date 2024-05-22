@@ -1,6 +1,6 @@
 Package: twiGPS
 Title: Time-Weighted spatial averaging methods Integrated with GPS measured environmental exposure
-Version: 0.0.9
+Version: 0.1.0
 Authors@R: 
     person("Igor", "Graczykowski", , "igor.graczykowski@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
