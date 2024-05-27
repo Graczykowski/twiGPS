@@ -2,7 +2,7 @@
 % Please edit documentation in R/exposure_KDE.R
 \name{exposure_KDE}
 \alias{exposure_KDE}
-\title{Kernel Density Estimation exposure}
+\title{Calculate Kernel Density Estimation exposure of point spatial data}
 \usage{
 exposure_KDE(
   data,
@@ -26,77 +26,103 @@ exposure_KDE(
 \arguments{
 \item{data}{Data.frame, SpatVector points or sf data.frame containing only POINTS.}
 
-\item{coords}{Character. Vector of column names of x and y coordinates if data is a data.frame.}
+\item{coords}{Character. Vector of column names of x and y coordinates if \code{data} is a data.frame.}
 
-\item{bandwidth}{Positive numeric. Bandwidth in units of output Coordinate Reference System.}
+\item{bandwidth}{Positive numeric. Bandwidth in units of output's CRS.}
 
 \item{cellsize}{Positive numeric. Size of raster cells in meters if output has a longtitude/latitude CRS or in the units of output CRS.}
 
-\item{env_data}{Stars, SpatRaster, SpatVector or sf. Spatial environmental data. Activity space is calculated when not set. When argument is a SpatVector or sf object vector data is rasterized to output raster using "sum" function.}
+\item{env_data}{Stars, SpatRaster, SpatVector or sf. Spatial environmental data. Activity space is calculated when not set. When argument is a SpatVector or sf object vector data is rasterized to output raster using \code{"sum"} function.}
 
-\item{output_crs}{Character or terra crs object. Coordinate Reference System of output. If not set and env_data is a SpatRaster env_data's CRS is used.}
+\item{output_crs}{Character or terra crs object. CRS of output. If not set and \code{env_data} is a SpatRaster \code{env_data}'s CRS is used.}
 
-\item{input_crs}{Character or terra crs object. Coordinate Reference System of data's coordinates if data is a data.frame.}
+\item{input_crs}{Character or terra crs object. CRS of \code{data}'s coordinates if \code{data} is a data.frame.}
 
-\item{grid_extent}{Stars, SpatRaster, SpatExtent, sf bbox object or numeric vector of 4 length c(xmin, xmax, ymin, ymax). If stars or SpatRaster grid_extent is output's grid and cellsize argument is ignored. If SpatExtent, sf bbox object or vector grid_extent is output's extent. If cellsize is set it is preserved at the cost of extent.}
+\item{grid_extent}{Stars, SpatRaster, SpatExtent, sf bbox object or numeric vector of 4 length \code{c(xmin, xmax, ymin, ymax)}. If stars or SpatRaster \code{grid_extent} is output's grid and \code{cellsize} argument is ignored. If SpatExtent, sf bbox object or vector \code{grid_extent} is output's extent. Then, if \code{cellsize} is set it is preserved at the cost of extent.}
 
-\item{normalize}{Character. If not empty activity space SpatRaster is normalized with specified method. Four methods - "center", "scale", "standardize" and "range". Default is "range". See BBmisc::normalize().}
+\item{normalize}{Character. If set activity space SpatRaster is normalized with specified method. Four methods - "center", "scale", "standardize" and "range". See \code{\link[BBmisc:normalize]{BBmisc::normalize()}}.}
 
-\item{group_split}{Data masking. Column of data based on which it is grouped and split. For n groups output will be n SpatRasters.}
+\item{group_split}{Data masking. Column of data based on which it is grouped and split. For n groups output will be SpatRasters with n layers.}
 
-\item{norm_group}{Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is normalized seperately. If TRUE SpatRasters are normalized to SpatRaster with highest max value.}
+\item{norm_group}{Boolean. Applicable only When normalize is "range" and group_split is set. If FALSE each layer of SpatRaster is normalized seperately. If TRUE all layer are normalized to layer with highest max value (default FALSE).}
 
-\item{filepath}{Character. Output filename. See terra::writeRaster().}
+\item{filepath}{Character. Output filename. See \code{\link[terra:writeRaster]{terra::writeRaster()}}.}
 
-\item{NA_val}{Numeric. Value in x and y marked as NA if data is a data.frame.}
+\item{NA_val}{Numeric. Value in x and y marked as NA if \code{data} is a data.frame.}
 
-\item{env_field}{Data masking. Column of env_data that env_data will be rasterized on. Ignored if env_data not a SpatVector or sf class.}
+\item{env_field}{Data masking. Column of \code{env_data} that \code{env_data} will be rasterized on. Ignored if \code{env_data} not a SpatVector or sf class.}
 
-\item{env_buff}{Positive numeric. Optional buffer around SpatVector/sf env_data in meters if output has a longtitude/latitude CRS or in the units of the CRS. See terra::buffer(). Ignored if env_data not a SpatVector or sf class.}
+\item{env_buff}{Positive numeric. Optional buffer around SpatVector/sf \code{env_data} in meters if output has a longtitude/latitude CRS or in the units of the CRS. Ignored if \code{env_data} not a SpatVector or sf class. See \code{\link[terra:buffer]{terra::buffer()}}.}
 
-\item{verbose}{Boolean. If TRUE amount of output is reduced.}
+\item{verbose}{Boolean. If FALSE amount of output is reduced (default TRUE).}
 }
 \value{
 SpatRaster
 }
 \description{
-Kernel Density Estimation method activity space and environmental exposure. Using spat_kde() function based on Silverman, B. W. 1986.
-In order to receive activity space ignore env_data argument.
-
-For other exposure methods see: \code{\link[=exposure_PO]{exposure_PO()}}, \code{\link[=exposure_DR]{exposure_DR()}}, \code{\link[=exposure_LS]{exposure_LS()}}
+\code{exposure_KDE()} calculates activity space and environmental exposure using Kernel Density Estimation method.
+Kernel Density Estimation function is based on Silverman's quartic kernel:
+\deqn{
+\hat{f}(x) = \frac{1}{h^2} \sum^n_{i=1} K \{\frac{1}{h}(x - X_i)\}
+}
+and
+\deqn{
+K_2(x) = \left\{ \begin{array}{rcl} 3\pi^{-1}(1-x^Tx)^2 & if & x^Tx > 1 \\ 0 & \ & otherwise \end{array}\right.
+}
+where \code{h} is a bandwidth of kernel (\code{bandwidth} argument). Formula calculates output in intensity units.
+Setting \code{env_data} argument determines whether environmental exposure or activity space is computed.
 
 For calculating statistics of output raster use \code{\link[=exposure_stats]{exposure_stats()}}
 }
 \examples{
-# activity space
-exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), bandwidth = 200,
-  cellsize = 50, output_crs = "EPSG:32611", input_crs = "EPSG:4326",
-  normalize = "range", verbose = FALSE)
+# activity space for data.frame 'data'
+exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"),
+  bandwidth = 200, cellsize = 50, output_crs = "EPSG:32611",
+  input_crs = "EPSG:4326")
+
+# SpatVector data
+geolife_vect = terra::vect(geolife_sandiego,
+                           geom = c("lon", "lat"),
+                           crs = "EPSG:4326") |>
+                           terra::project("EPSG:32611")
+
+# normalize "range"
+exposure_KDE(data = geolife_vect, bandwidth = 200,
+  cellsize = 50, normalize = "range")
+
+# normalize "standardize"
+exposure_KDE(data = geolife_vect, bandwidth = 200,
+  cellsize = 50, normalize = "standardize")
 
 # split by date
-exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), bandwidth = 200,
-  cellsize = 50, normalize = "range", group_split = date, norm_group = FALSE,
-  output_crs = "EPSG:32611", input_crs = "EPSG:4326", verbose = FALSE)
+exposure_KDE(data = geolife_vect, bandwidth = 200,
+  cellsize = 50, normalize = "range", group_split = date)
 
-# split by date and define extent
+# split by date, normalize by group and define extent
 extent = c(478000, 484000, 3618000, 3627000)
 
-exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), bandwidth = 200,
-  cellsize = 50, output_crs = "EPSG:32611", input_crs = "EPSG:4326",
-  grid_extent = extent, normalize = "range", group_split = date,
-  norm_group = TRUE, verbose = FALSE)
+exposure_KDE(data = geolife_vect, bandwidth = 200,
+  cellsize = 50, grid_extent = extent, normalize = "range",
+  group_split = date, norm_group = TRUE)
 
-#environmental exposure
+# environmental exposure
+ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif",
+                                     package = "twiGPS"))
 
-ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
-
-exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), bandwidth = 200,
-  cellsize = 50, env_data = ndvi_data, output_crs = "EPSG:32611",
- input_crs = "EPSG:4326", verbose = FALSE)
+exposure_KDE(data = geolife_vect, bandwidth = 200,
+ cellsize = 50, env_data = ndvi_data)
 
 # environmental exposure - use rast grid and split by date
-exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), bandwidth = 200,
-  cellsize = 50, env_data = ndvi_data, output_crs = "EPSG:32611",
-  input_crs = "EPSG:4326", grid_extent = ndvi_data, normalize = "range",
-  group_split = date, norm_group = TRUE, verbose = FALSE)
+exposure_KDE(data = geolife_vect, bandwidth = 200,
+  env_data = ndvi_data, grid_extent = ndvi_data,
+  normalize = "range", group_split = date)
+
+}
+\references{
+Jankowska, Marta M., Jiue-An Yang, Nana Luo, Chad Spoon, and Tarik Benmarhnia. 2023. “Accounting for Space, Time, and Behavior Using GPS Derived Dynamic Measures of Environmental Exposure.” Health & Place 79 (January): 102706. https://doi.org/10.1016/j.healthplace.2021.102706.
+
+Silverman, B. W. 1986. Density Estimation for Statistics and Data Analysis. Vol. 37. 1. Chapman Hall.
+}
+\seealso{
+\code{\link[=exposure_PO]{exposure_PO()}}, \code{\link[=exposure_DR]{exposure_DR()}}, \code{\link[=exposure_LS]{exposure_LS()}}
 }

@@ -7,29 +7,28 @@
 exposure_stats(..., stats, row_names = NULL, verbose = TRUE)
 }
 \arguments{
-\item{...}{SpatRaster objects to calculate statistics on}
+\item{...}{SpatRaster objects from which statistics are calculated}
 
-\item{stats}{vector of statistics to be calculated. See terra::global() for more details. Added "range", "count" and "area".}
+\item{stats}{Character. Single or vector of statistics to be calculated. See \code{\link[terra:global]{terra::global()}} for more details. Added "range", "count" and "area".}
 
-\item{row_names}{vector the same length as number of ... arguments specifying row names of output data.frame. If NULL row names are ... arguments, values without argument specified will be numbered row-wise.}
+\item{row_names}{Character. Single or vector the same length as number of ... arguments specifying row names of output data.frame. If NULL row names are ... arguments, values without argument specified will be numbered row-wise.}
 
 \item{verbose}{Boolean. If TRUE amount of output is reduced.}
 }
 \value{
-Data.frame of length(stats) columns and ... rows
+Data.frame of \code{length(stats)} columns and \code{length(...)} rows
 }
 \description{
-Calculate statistics dataframe from multiple SpatRasters
-
-For exposure methods see: \code{\link[=exposure_PO]{exposure_PO()}}, \code{\link[=exposure_KDE]{exposure_KDE()}}, \code{\link[=exposure_DR]{exposure_DR()}}, \code{\link[=exposure_LS]{exposure_LS()}}
+Calculate statistics data.frame from multiple SpatRasters
 }
 \examples{
 statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
 
-ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
+ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif",
+                                     package = "twiGPS"))
 
-exposure = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
-                       input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+exposure = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"),
+                       cellsize = 50, input_crs = "EPSG:4326")
 # no names
 exposure_stats(ndvi_data, exposure, stats = statistics)
 
@@ -37,6 +36,9 @@ exposure_stats(ndvi_data, exposure, stats = statistics)
 exposure_stats(ndvi = ndvi_data, PO = exposure, stats = statistics)
 
 # names
-exposure_stats(ndvi_data, exposure, stats = statistics, row_names = c("NDVI", "PO"))
-
+exposure_stats(ndvi_data, exposure, stats = statistics,
+ row_names = c("NDVI", "Point Exposure"))
+}
+\seealso{
+\code{\link[=exposure_PO]{exposure_PO()}}, \code{\link[=exposure_KDE]{exposure_KDE()}}, \code{\link[=exposure_DR]{exposure_DR()}}, \code{\link[=exposure_LS]{exposure_LS()}}
 }

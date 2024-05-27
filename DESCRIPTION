@@ -1,17 +1,16 @@
 Package: twiGPS
 Title: Time-Weighted spatial averaging methods Integrated with GPS measured environmental exposure
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: 
     person("Igor", "Graczykowski", , "igor.graczykowski@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
 Description: TWSA methods (Point Overlay, Kernel Density Estimation,
-    Density Ranking, Line Segment) in GPS health data.
+    Density Ranking, Line Segment) Integrated with GPS measured environmental exposure.
     Sample data - geolife_sandiego (sample data from
     Geolife GPS Trajectories 1.3 Data for San Diego county).
     Environmental data - landsat_ndvi (NDVI calculated from 
     Landsat 9 image for San Diego county captured on 22nd Februrary 2024).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+License: use_gpl3_license()
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1

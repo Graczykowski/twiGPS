@@ -1,68 +1,82 @@
-#' Point Overlay exposure
+#' Calculate Point Overlay exposure of point spatial data
 #'
 #' @description
-#' Point Overlay method activity space and environmental exposure. In order to receive activity space ignore env_data argument.
-#'
-#' For other exposure methods see: [exposure_KDE()], [exposure_DR()], [exposure_LS()]
+#' `exposure_PO()` calculates activity space and environmental exposure using Point Overlay method.
+#' Point Overlay utilizes [terra::rasterize()] with `fun = "length"` to evaluate output.
+#' Setting `env_data` argument determines whether environmental exposure or activity space is computed.
 #'
 #' For calculating statistics of output raster use [exposure_stats()]
 #'
+#' @seealso [exposure_KDE()], [exposure_DR()], [exposure_LS()]
+#'
 #' @param data Data.frame, SpatVector points or sf data.frame containing only POINTS.
-#' @param coords Character. Vector of column names of x and y coordinates if data is a data.frame.
+#' @param coords Character. Vector of column names of x and y coordinates if `data` is a data.frame.
 #' @param cellsize Positive numeric. Size of raster cells in meters if output has a longtitude/latitude CRS or in the units of output CRS.
-#' @param env_data Stars, SpatRaster, SpatVector or sf. Spatial environmental data. Activity space is calculated when not set. When argument is a SpatVector or sf object vector data is rasterized to output raster using "sum" function.
-#' @param output_crs Character or terra crs object. Coordinate Reference System of output. If not set and env_data is a SpatRaster env_data's CRS is used.
-#' @param input_crs Character or terra crs object. Coordinate Reference System of data's coordinates if data is a data.frame.
-#' @param grid_extent Stars, SpatRaster, SpatExtent, sf bbox object or numeric vector of 4 length c(xmin, xmax, ymin, ymax). If stars or SpatRaster grid_extent is output's grid and cellsize argument is ignored. If SpatExtent, sf bbox object or vector grid_extent is output's extent. If cellsize is set it is preserved at the cost of extent.
-#' @param normalize Character. If not empty activity space SpatRaster is normalized with specified method. Four methods - "center", "scale", "standardize" and "range". Default is "range". See BBmisc::normalize().
-#' @param group_split Data masking. Column of data based on which it is grouped and split. For n groups output will be n SpatRasters.
-#' @param norm_group Boolean. When normalize is TRUE, norm_method is "range" and group_split is set. If FALSE each SpatRaster is normalized seperately. If TRUE SpatRasters are normalized to SpatRaster with highest max value.
-#' @param filepath Character. Output filename. See terra::writeRaster().
-#' @param NA_val Numeric. Value in x and y marked as NA if data is a data.frame.
-#' @param env_field Data masking. Column of env_data that env_data will be rasterized on. Ignored if env_data not a SpatVector or sf class.
-#' @param env_buff Positive numeric. Optional buffer around SpatVector/sf env_data in meters if output has a longtitude/latitude CRS or in the units of the CRS. See terra::buffer(). Ignored if env_data not a SpatVector or sf class.
-#' @param verbose Boolean. If TRUE amount of output is reduced.
+#' @param env_data Stars, SpatRaster, SpatVector or sf. Spatial environmental data. Activity space is calculated when not set. When argument is a SpatVector or sf object vector data is rasterized to output raster using `"sum"` function.
+#' @param output_crs Character or terra crs object. CRS of output. If not set and `env_data` is a SpatRaster `env_data`'s CRS is used.
+#' @param input_crs Character or terra crs object. CRS of `data`'s coordinates if `data` is a data.frame.
+#' @param grid_extent Stars, SpatRaster, SpatExtent, sf bbox object or numeric vector of 4 length `c(xmin, xmax, ymin, ymax)`. If stars or SpatRaster `grid_extent` is output's grid and `cellsize` argument is ignored. If SpatExtent, sf bbox object or vector `grid_extent` is output's extent. Then, if `cellsize` is set it is preserved at the cost of extent.
+#' @param normalize Character. If set activity space SpatRaster is normalized with specified method. Four methods - "center", "scale", "standardize" and "range". See [BBmisc::normalize()].
+#' @param group_split Data masking. Column of data based on which it is grouped and split. For n groups output will be SpatRasters with n layers.
+#' @param norm_group Boolean. Applicable only When normalize is "range" and group_split is set. If FALSE each layer of SpatRaster is normalized seperately. If TRUE all layer are normalized to layer with highest max value (default FALSE).
+#' @param filepath Character. Output filename. See [terra::writeRaster()].
+#' @param NA_val Numeric. Value in x and y marked as NA if `data` is a data.frame.
+#' @param env_field Data masking. Column of `env_data` that `env_data` will be rasterized on. Ignored if `env_data` not a SpatVector or sf class.
+#' @param env_buff Positive numeric. Optional buffer around SpatVector/sf `env_data` in meters if output has a longtitude/latitude CRS or in the units of the CRS. Ignored if `env_data` not a SpatVector or sf class. See [terra::buffer()].
+#' @param verbose Boolean. If FALSE amount of output is reduced (default TRUE).
+#'
+#' @references Jankowska, Marta M., Jiue-An Yang, Nana Luo, Chad Spoon, and Tarik Benmarhnia. 2023. “Accounting for Space, Time, and Behavior Using GPS Derived Dynamic Measures of Environmental Exposure.” Health & Place 79 (January): 102706. https://doi.org/10.1016/j.healthplace.2021.102706.
 #'
 #' @return SpatRaster
 #'
 #' @examples
-#' # activity space
-#' exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50,
-#'   output_crs = "EPSG:32611", input_crs = "EPSG:4326", normalize = "range",
-#'   verbose = FALSE)
+#' # activity space for data.frame 'data'
+#' exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"),
+#'   cellsize = 50, output_crs = "EPSG:32611",
+#'   input_crs = "EPSG:4326")
 #'
-#' # split by date
-#' exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50,
-#'   normalize = "range", group_split = date, norm_group = FALSE,
-#'   output_crs = "EPSG:32611", input_crs = "EPSG:4326", verbose = FALSE)
+#' # SpatVector data
+#' geolife_vect = terra::vect(geolife_sandiego,
+#'                            geom = c("lon", "lat"),
+#'                            crs = "EPSG:4326") |>
+#'                            terra::project("EPSG:32611")
+#' # normalize "range"
+#' exposure_PO(data = geolife_vect, cellsize = 50,
+#'   normalize = "range")
 #'
-#' # split by date and define extent
+#' # normalize "center"
+#' exposure_PO(data = geolife_vect, cellsize = 50,
+#'   normalize = "center")
+#'
+#' # split by date and normalize
+#' exposure_PO(data = geolife_vect, cellsize = 50,
+#'   normalize = "range", group_split = date)
+#'
+#' # split by date, normalize by group and define extent
 #' extent = c(478000, 484000, 3618000, 3627000)
 #'
-#' exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50,
-#'   output_crs = "EPSG:32611", input_crs = "EPSG:4326", grid_extent = extent,
-#'   normalize = "range", group_split = date, norm_group = TRUE, verbose = FALSE)
+#' exposure_PO(data = geolife_vect, cellsize = 50,
+#'   grid_extent = extent, normalize = "range",
+#'   group_split = date, norm_group = TRUE)
 #'
-#' #environmental exposure
+#' # environmental exposure
+#' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif",
+#'                                      package = "twiGPS"))
 #'
-#' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
-#'
-#' exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50,
-#'  env_data = ndvi_data, output_crs = "EPSG:32611", input_crs = "EPSG:4326",
-#'  verbose = FALSE)
+#' exposure_PO(data = geolife_vect, cellsize = 50,
+#'  env_data = ndvi_data)
 #'
 #' # environmental exposure - use rast grid and split by date
-#' exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50,
-#'   env_data = ndvi_data, output_crs = "EPSG:32611", input_crs = "EPSG:4326",
-#'   grid_extent = ndvi_data, normalize = "range", group_split = date,
-#'   norm_group = TRUE, verbose = FALSE)
+#' exposure_PO(data = geolife_vect, env_data = ndvi_data,
+#'   grid_extent = ndvi_data, normalize = "range",
+#'   group_split = date)
 #' @export
 
 
 exposure_PO = function(data, coords, cellsize, env_data, output_crs,
                        input_crs, grid_extent, normalize, group_split,
                        norm_group = FALSE, filepath, NA_val, env_field,
-                       env_buff, verbose = TRUE){
+                       env_buff, verbose = TRUE, ...){
 
   # handle verbose
   if (is.na(as.logical(verbose))){
@@ -172,7 +186,7 @@ exposure_PO = function(data, coords, cellsize, env_data, output_crs,
 
   for (data_i in data_iter){
 
-    rast_points = terra::rasterize(data_i, grid_rast,  fun = "length")
+    rast_points = terra::rasterize(data_i, grid_rast,  fun = "length", ...)
 
     if (!missing(normalize) && (!norm_group || normalize != "range" || length(data_iter) == 1)){
       if (normalize != "range" && norm_group && verbose) {

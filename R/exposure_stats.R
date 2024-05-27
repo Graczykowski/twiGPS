@@ -1,24 +1,24 @@
 #' Exposure statistics
 #'
 #' @description
-#' Calculate statistics dataframe from multiple SpatRasters
+#' Calculate statistics data.frame from multiple SpatRasters
 #'
-#' For exposure methods see: [exposure_PO()], [exposure_KDE()], [exposure_DR()], [exposure_LS()]
 #'
-#' @param ... SpatRaster objects to calculate statistics on
-#' @param stats vector of statistics to be calculated. See terra::global() for more details. Added "range", "count" and "area".
-#' @param row_names vector the same length as number of ... arguments specifying row names of output data.frame. If NULL row names are ... arguments, values without argument specified will be numbered row-wise.
+#' @param ... SpatRaster objects from which statistics are calculated
+#' @param stats Character. Single or vector of statistics to be calculated. See [terra::global()] for more details. Added "range", "count" and "area".
+#' @param row_names Character. Single or vector the same length as number of ... arguments specifying row names of output data.frame. If NULL row names are ... arguments, values without argument specified will be numbered row-wise.
 #' @param verbose Boolean. If TRUE amount of output is reduced.
 #'
-#' @return Data.frame of length(stats) columns and ... rows
+#' @return Data.frame of `length(stats)` columns and `length(...)` rows
 #'
 #' @examples
 #' statistics = c("count", "area", "min", "max", "range", "mean", "std", 'sum')
 #'
-#' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
+#' ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif",
+#'                                      package = "twiGPS"))
 #'
-#' exposure = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
-#'                        input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+#' exposure = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"),
+#'                        cellsize = 50, input_crs = "EPSG:4326")
 #' # no names
 #' exposure_stats(ndvi_data, exposure, stats = statistics)
 #'
@@ -26,8 +26,9 @@
 #' exposure_stats(ndvi = ndvi_data, PO = exposure, stats = statistics)
 #'
 #' # names
-#' exposure_stats(ndvi_data, exposure, stats = statistics, row_names = c("NDVI", "PO"))
-#'
+#' exposure_stats(ndvi_data, exposure, stats = statistics,
+#'  row_names = c("NDVI", "Point Exposure"))
+#' @seealso [exposure_PO()], [exposure_KDE()], [exposure_DR()], [exposure_LS()]
 #' @export
 
 exposure_stats =  function(..., stats, row_names = NULL, verbose = TRUE){
