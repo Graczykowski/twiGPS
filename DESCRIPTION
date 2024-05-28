@@ -22,7 +22,8 @@ Imports:
   tidyr,
   stats,
   exactextractr,
-  rlang,
+  rlang
+Suggests:
   testthat
 URL: https://github.com/Graczykowski/twiGPS
 BugReports: https://github.com/Graczykowski/twiGPS/issues
