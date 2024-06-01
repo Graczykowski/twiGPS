@@ -4,9 +4,9 @@
 \name{twiGPS-package}
 \alias{twiGPS}
 \alias{twiGPS-package}
-\title{twiGPS: Time-Weighted spatial averaging methods Integrated with GPS measured environmental exposure}
+\title{twiGPS: Time-Weighted Spatial Averaging Methods with GPS}
 \description{
-TWSA methods (Point Overlay, Kernel Density Estimation, Density Ranking, Line Segment) Integrated with GPS measured environmental exposure. Sample data - geolife_sandiego (sample data from Geolife GPS Trajectories 1.3 Data for San Diego county). Environmental data - landsat_ndvi (NDVI calculated from Landsat 9 image for San Diego county captured on 22nd Februrary 2024).
+Time-Weighted Spatial Averaging (TWSA) methods for calculating activity space and environmental exposure from GPS data. This package implements four TWSA methods - Point Overlay, Kernel Density Estimation, Density Ranking (Jankowska et al., 2023 <doi.org/10.1016/j.healthplace.2021.102706>) with the addtion of Line Segment method (github.com/michaeldgarber/microclim-static-v-dynam).
 }
 \seealso{
 Useful links:
@@ -17,7 +17,7 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Igor Graczykowski \email{igor.graczykowski@gmail.com} (\href{https://orcid.org/YOUR-ORCID-ID}{ORCID})
+\strong{Maintainer}: Igor Graczykowski \email{igor.graczykowski@gmail.com}
 
 }
 \keyword{internal}

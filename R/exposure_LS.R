@@ -85,7 +85,9 @@
 #'   time_data = dateTime, env_data = ndvi_data,
 #'   grid_extent = ndvi_data, normalize = "range",
 #'   group_split = date)
+#'
 #' @seealso [exposure_PO()], [exposure_KDE()], [exposure_DR()]
+#' @importFrom rlang .data
 #' @export
 
 
@@ -253,7 +255,7 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
         dplyr::mutate(time_elapsed = as.numeric(difftime(dplyr::lead(.data[[time_cname]]),
                                                          .data[[time_cname]], units = time_unit)),
                       line_id = dplyr::row_number()) |>
-        dplyr::select(line_id, time_elapsed)
+        dplyr::select(.data$line_id, .data$time_elapsed)
       # last NA value set to 0 for normalization to not set lowest time value to 0
       duration_line_id$time_elapsed[nrow(duration_line_id)] = 0
 
@@ -277,6 +279,11 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
 
 
     }
+    if (!missing(group_split) && enq_group_split %in% names(data_proj)){
+      traj_buff$name = unique(data_i[[enq_group_split]])
+    }
+
+
 
     buff_svc = c(buff_svc, traj_buff)
 
@@ -301,11 +308,12 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
     buff_svc = c(buff_svc)
   }
 
-  for (buff_n in  1:length(buff_svc)) {
+  for (buff_n in  1:length(data_iter)) {
+    current_buff = buff_svc[buff_n] # cmd fix
 
     if (!missing(env_data)){ #all of computation necessary only when calculating env_data
       # extract values and weights (area overlap) from grid for each cell of buffer
-      exac_extr = exactextractr::exact_extract(grid_rast, sf::st_as_sf(buff_svc[buff_n]), progress = FALSE)
+      exac_extr = exactextractr::exact_extract(grid_rast, sf::st_as_sf(current_buff), progress = FALSE)
 
       traj_extract = Map(function(x, id) {x$line_id = id
       return(x)}, x = exac_extr, seq_along(exac_extr)) |> dplyr::bind_rows() |>
@@ -316,32 +324,47 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
 
       # calculate summarised exposure for each buffer
       traj_extract_line_id = traj_extract |>
-        dplyr::group_by(line_id) |>
+        dplyr::group_by(.data$line_id) |>
         dplyr::summarise(
           #Jan 9, 2024 use R's built-in weighted.mean() function
           #instead of calculating weighted average manually
           end_weights=stats::weighted.mean(
-            x=e,
-            w=coverage_fraction,
+            x=.data$e,
+            w=.data$coverage_fraction,
             na.rm=TRUE),
           #These weights are based on the areal overlap, not time
-          sum_weights = sum(coverage_fraction,na.rm=TRUE),
+          sum_weights = sum(.data$coverage_fraction,na.rm=TRUE),
           n_pixel = dplyr::n() # number of observations corresponds to number of pixels per line segment
         ) |>
         dplyr::ungroup()
 
       # join weights with spatial buffer
 
-      weight_buff = terra::merge(buff_svc[buff_n], traj_extract_line_id)
+      weight_buff = terra::merge(current_buff, traj_extract_line_id)
 
       weight_buff$end_weights = weight_buff$end_weights * weight_buff$act
 
+
       # rasterize results
       rast_segment = terra::rasterize(weight_buff, grid_rast, field = "end_weights", fun = "sum")
+
+      if (!missing(group_split) && enq_group_split %in% names(data_proj)){
+        names(rast_segment) = unique(current_buff$name)
+      } else {
+        names(rast_segment) = "env_exposure"
+      }
+
     } else {
-      rast_segment = terra::rasterize(buff_svc[buff_n], grid_rast, field = "act", fun = "sum")
+      f_name = names(current_buff)[2] # hardcoded as cmd throws an error
+      rast_segment = terra::rasterize(current_buff, grid_rast, field = f_name, fun = "sum")
+
+      if (!missing(group_split) && enq_group_split %in% names(data_proj)){
+        names(rast_segment) = unique(current_buff$name)
+      } else {
+        names(rast_segment) = "activity_space"
+      }
     }
-    output = suppressWarnings(append(output, (rast_segment)))
+    output = suppressWarnings(append(output, rast_segment))
 
   }
 

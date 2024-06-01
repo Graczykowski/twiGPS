@@ -70,13 +70,15 @@
 #' exposure_PO(data = geolife_vect, env_data = ndvi_data,
 #'   grid_extent = ndvi_data, normalize = "range",
 #'   group_split = date)
+#'
+#' @importFrom rlang .data
 #' @export
 
 
 exposure_PO = function(data, coords, cellsize, env_data, output_crs,
                        input_crs, grid_extent, normalize, group_split,
                        norm_group = FALSE, filepath, NA_val, env_field,
-                       env_buff, verbose = TRUE, ...){
+                       env_buff, verbose = TRUE){
 
   # handle verbose
   if (is.na(as.logical(verbose))){
@@ -168,7 +170,7 @@ exposure_PO = function(data, coords, cellsize, env_data, output_crs,
     data_iter = list(data_proj) # only one item for for loop
   } else {
     enq_group_split = rlang::quo_name(rlang::enquo(group_split))
-    if (enq_group_split %in% terra::names(data_proj)){
+    if (enq_group_split %in% names(data_proj)){
       data_iter = terra::split(data_proj, enq_group_split) # split data_proj by group_split
       if (verbose) {
         message(paste0("Data is split into ", length(data_iter), " groups"))
@@ -186,7 +188,15 @@ exposure_PO = function(data, coords, cellsize, env_data, output_crs,
 
   for (data_i in data_iter){
 
-    rast_points = terra::rasterize(data_i, grid_rast,  fun = "length", ...)
+    rast_points = terra::rasterize(data_i, grid_rast,  fun = "length")
+
+    if (!missing(group_split) && enq_group_split %in% names(data_proj)){
+      r_name = unique(data_i[enq_group_split][[1]])
+    } else {
+      r_name = "activity_space"
+    }
+    names(rast_points) = r_name
+
 
     if (!missing(normalize) && (!norm_group || normalize != "range" || length(data_iter) == 1)){
       if (normalize != "range" && norm_group && verbose) {
@@ -211,6 +221,9 @@ exposure_PO = function(data, coords, cellsize, env_data, output_crs,
     env_data_proj = terra::project(env_data, grid_rast)
 
     rast_env_points = act_out * env_data_proj
+    if (missing(group_split) || !enq_group_split %in% names(data_proj)){
+      names(rast_env_points) = "env_exposure"
+    }
     output = rast_env_points
   } else {
     output = act_out

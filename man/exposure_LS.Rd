@@ -125,6 +125,7 @@ exposure_LS(data = geolife_vect, bandwidth = 200,
   time_data = dateTime, env_data = ndvi_data,
   grid_extent = ndvi_data, normalize = "range",
   group_split = date)
+
 }
 \references{
 Jankowska, Marta M., Jiue-An Yang, Nana Luo, Chad Spoon, and Tarik Benmarhnia. 2023. “Accounting for Space, Time, and Behavior Using GPS Derived Dynamic Measures of Environmental Exposure.” Health & Place 79 (January): 102706. https://doi.org/10.1016/j.healthplace.2021.102706.

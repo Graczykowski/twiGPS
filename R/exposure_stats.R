@@ -29,6 +29,7 @@
 #' exposure_stats(ndvi_data, exposure, stats = statistics,
 #'  row_names = c("NDVI", "Point Exposure"))
 #' @seealso [exposure_PO()], [exposure_KDE()], [exposure_DR()], [exposure_LS()]
+#' @importFrom rlang .data
 #' @export
 
 exposure_stats =  function(..., stats, row_names = NULL, verbose = TRUE){
@@ -68,8 +69,8 @@ exposure_stats =  function(..., stats, row_names = NULL, verbose = TRUE){
         val = range[2] - range[1]
         colnames(val) = "range"
         val},
-        count = {raster |> terra::freq() |> dplyr::summarise(count = sum(count))},
-        area = {raster |> terra::expanse() |> dplyr::select(area)},
+        count = {raster |> terra::freq() |> dplyr::summarise(count = sum(.data$count))},
+        area = {raster |> terra::expanse() |> dplyr::select(.data$area)},
         terra::global(raster, fun = statistic, na.rm = TRUE)
       )
       row_df = cbind(row_df, column)

@@ -14,10 +14,8 @@ knitr::opts_chunk$set(
 # twiGPS
 ## Time-Weighted spatial averaging (TWSA) methods Integrated with GPS measured environmental exposure
 <!-- badges: start -->
-```{r, include=FALSE}
-usethis::use_coverage()
-```
 [![Codecov test coverage](https://codecov.io/gh/Graczykowski/twsagps/branch/master/graph/badge.svg)](https://app.codecov.io/gh/Graczykowski/twsagps?branch=master)
+[![R-CMD-check](https://github.com/Graczykowski/twsagps/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/Graczykowski/twsagps/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 `twiGPS` is a R package designed for calculating exposure and activity space from GPS data. You can utilize 

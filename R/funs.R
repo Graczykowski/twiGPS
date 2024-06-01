@@ -1,4 +1,4 @@
-
+#' @importFrom rlang .data
 # handling crs and selecting days from data
 
 start_processing = function(data, coords, NA_val, env_data, grid_extent,
@@ -16,7 +16,7 @@ start_processing = function(data, coords, NA_val, env_data, grid_extent,
         data[data[coords[1]] != NA_val & data[coords[2]] != NA_val,] # to improve
         if (verbose) {
           number_row = n_row - nrow(data)
-          warning(paste0("Removed ", number_row, ifelse(number_rows == 1, " row", " rows"), " containing default NA value ",
+          warning(paste0("Removed ", number_row, ifelse(number_row == 1, " row", " rows"), " containing default NA value ",
                          NA_val, " in 'coords' columns names"))
         }
       } else if (verbose) {
@@ -281,19 +281,19 @@ trajectories_fun = function(data){
     #define start and end points of line
     dplyr::mutate(
       line_id = dplyr::row_number(),#an id for each "line segment"
-      x_start= sf::st_coordinates(geometry)[,1],
-      y_start= sf::st_coordinates(geometry)[,2],
-      x_end = dplyr::lead(x_start),
-      y_end = dplyr::lead(y_start)
+      x_start= sf::st_coordinates(.data$geometry)[,1],
+      y_start= sf::st_coordinates(.data$geometry)[,2],
+      x_end = dplyr::lead(.data$x_start),
+      y_end = dplyr::lead(.data$y_start)
     ) |>
     dplyr::ungroup() |>
     sf::st_set_geometry(NULL) |>
     #exclude the last observation, which has no "lead", and will be missing.
-    dplyr::filter(is.na(x_end)==FALSE) |>
+    dplyr::filter(is.na(.data$x_end)==FALSE) |>
     # Make the data long form so that each point has two observations
     tidyr::pivot_longer(
       # select variables to pivot longer.
-      cols = c(x_start, y_start, x_end, y_end),
+      cols = c(.data$x_start, .data$y_start, .data$x_end, .data$y_end),
       #value goes to "x/y", and time goes to "_start/end"
       names_to = c(".value", lst_name),
       names_repair = "unique",
@@ -301,7 +301,7 @@ trajectories_fun = function(data){
     ) |>
     # create sf object once again
     sf::st_as_sf(coords = c("x", "y"), crs= sf::st_crs(data)) |>
-    dplyr::group_by(line_id) |>
+    dplyr::group_by(.data$line_id) |>
     #see Edzer's answer here:https://github.com/r-spatial/sf/issues/851
     #do_union=FALSE is needed.
     dplyr::summarize(do_union = FALSE) |>
@@ -365,8 +365,8 @@ kde = function(points, ref_uq_x, ref_uq_y, bw) {
     # calculate distance within quadratic search radius
     df_row = rows_T |> as.data.frame() |>
       dplyr::mutate(sum_val = ay[cbind(row, cols_T[col])] + ax[cbind(xcol, cols_T[col])]) |>
-      dplyr::filter(sum_val <= bw ^ 2) |> # filter points within search radius based on real distance
-      dplyr::mutate(sum_val = (sum_val / bw ^ 2 * (-1) + 1) ^ 2) # calculate impact of each point on cells
+      dplyr::filter(.data$sum_val <= bw ^ 2) |> # filter points within search radius based on real distance
+      dplyr::mutate(sum_val = (.data$sum_val / bw ^ 2 * (-1) + 1) ^ 2) # calculate impact of each point on cells
 
     #create empty matrix
     empty_mx = matrix(NA, nrow = nrow(ay), ncol = length(cols_T))

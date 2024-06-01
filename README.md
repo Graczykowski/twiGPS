@@ -7,6 +7,7 @@
 
 [![Codecov test
 coverage](https://codecov.io/gh/Graczykowski/twsagps/branch/master/graph/badge.svg)](https://app.codecov.io/gh/Graczykowski/twsagps?branch=master)
+[![R-CMD-check](https://github.com/Graczykowski/twsagps/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/Graczykowski/twsagps/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 `twiGPS` is a R package designed for calculating exposure and activity

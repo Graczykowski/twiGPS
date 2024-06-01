@@ -81,6 +81,7 @@
 #'   normalize = "range", group_split = date)
 #'
 #' @seealso [exposure_PO()], [exposure_DR()], [exposure_LS()]
+#' @importFrom rlang .data
 #' @export
 exposure_KDE = function(data, coords, bandwidth, cellsize, env_data, output_crs,
                         input_crs, grid_extent, normalize, group_split,
@@ -203,6 +204,13 @@ exposure_KDE = function(data, coords, bandwidth, cellsize, env_data, output_crs,
 
     kde_rast = spat_kde(data_i, grid_rast, bandwidth)
 
+    if (!missing(group_split) && enq_group_split %in% names(data_proj)){
+      r_name = unique(data_i[enq_group_split][[1]])
+    } else {
+      r_name = "activity_space"
+    }
+    names(kde_rast) = r_name
+
     if (!missing(normalize) && (!norm_group || normalize != "range" || length(data_iter) == 1)){
       if (normalize != "range" && norm_group && verbose) {
         message(paste0('Normalization method is "', normalize, '" - \'norm_group\' = TRUE is applicable only for normalization method "range". \'Norm_group\' argument ignored, each group is normalized seperately'))
@@ -227,8 +235,13 @@ exposure_KDE = function(data, coords, bandwidth, cellsize, env_data, output_crs,
     # project env_data to grid
     env_data_proj = terra::project(env_data, grid_rast)
 
-    rast_env_points = act_out * env_data_proj
-    output = rast_env_points
+    rast_env_kde = act_out * env_data_proj
+
+    if (missing(group_split) || !enq_group_split %in% names(data_proj)){
+      names(rast_env_kde) = "env_exposure"
+    }
+
+    output = rast_env_kde
   } else {
     output = act_out
   }

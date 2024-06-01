@@ -81,6 +81,7 @@
 #'   env_data = ndvi_data, grid_extent = ndvi_data,
 #'   normalize = "range", group_split = date)
 #' @seealso [exposure_PO()], [exposure_KDE()], [exposure_LS()]
+#' @importFrom rlang .data
 #' @export
 
 
@@ -206,6 +207,13 @@ exposure_DR = function(data, coords, bandwidth, cellsize, env_data, output_crs,
 
     dr_rast = spat_dr(data_i, grid_rast, bandwidth)
 
+    if (!missing(group_split) && enq_group_split %in% names(data_proj)){
+      r_name = unique(data_i[enq_group_split][[1]])
+    } else {
+      r_name = "activity_space"
+    }
+    names(dr_rast) = r_name
+
     if (!missing(normalize) && (!norm_group || normalize != "range" || length(data_iter) == 1)){
       if (normalize != "range" && norm_group && verbose) {
         message(paste0('Normalization method is "', normalize, '" - \'norm_group\' = TRUE is applicable only for normalization method "range". \'Norm_group\' argument ignored, each group is normalized seperately'))
@@ -229,8 +237,12 @@ exposure_DR = function(data, coords, bandwidth, cellsize, env_data, output_crs,
     # project env_data to grid
     env_data_proj = terra::project(env_data, grid_rast)
 
-    rast_env_points = act_out * env_data_proj
-    output = rast_env_points
+    rast_env_dr = act_out * env_data_proj
+    if (missing(group_split) || !enq_group_split %in% names(data_proj)){
+      names(rast_env_dr) = "env_exposure"
+    }
+
+    output = rast_env_dr
   } else {
     output = act_out
   }

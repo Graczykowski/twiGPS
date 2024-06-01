@@ -534,6 +534,7 @@ testthat::test_that("exposure_DR normalize range", {
                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+ names(DR) = "activity_space"
   testthat::expect_equal(DR_test,DR)
 })
 
@@ -542,6 +543,7 @@ testthat::test_that("exposure_DR normalize center", {
                                bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+ names(DR) = "activity_space"
   testthat::expect_equal(DR_test,DR)
 })
 
@@ -550,6 +552,7 @@ testthat::test_that("exposure_DR normalize scale", {
                                bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+ names(DR) = "activity_space"
   testthat::expect_equal(DR_test,DR)
 })
 
@@ -558,6 +561,8 @@ testthat::test_that("exposure_DR normalize standardize", {
                                bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+ names(DR) = "activity_space"
+
   testthat::expect_equal(DR_test,DR)
 })
 
@@ -567,7 +572,9 @@ testthat::test_that("exposure_DR normalize range groups", {
                        bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                         bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
-  testthat::expect_equal(DR_test,DR)
+ names(DR) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
+               "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
+ testthat::expect_equal(DR_test,DR)
 })
 
 testthat::test_that("exposure_DR normalize range groups", {
@@ -575,7 +582,9 @@ testthat::test_that("exposure_DR normalize range groups", {
                        bandwidth = 200, norm_group = TRUE, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                         bandwidth = 200, norm_group = TRUE, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
-  testthat::expect_equal(DR_test,DR)
+ names(DR) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
+               "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
+ testthat::expect_equal(DR_test,DR)
 })
 
 testthat::test_that("exposure_DR normalize center groups", {
@@ -583,7 +592,9 @@ testthat::test_that("exposure_DR normalize center groups", {
                                bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
                         bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
-  testthat::expect_equal(DR_test,DR)
+ names(DR) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
+               "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
+ testthat::expect_equal(DR_test,DR)
 })
 
 testthat::test_that("exposure_DR normalize scale groups", {
@@ -591,7 +602,9 @@ testthat::test_that("exposure_DR normalize scale groups", {
                                bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
                         bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
-  testthat::expect_equal(DR_test,DR)
+ names(DR) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
+               "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
+   testthat::expect_equal(DR_test,DR)
 })
 
 testthat::test_that("exposure_DR normalize standardize groups", {
@@ -599,6 +612,8 @@ testthat::test_that("exposure_DR normalize standardize groups", {
                                bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
                         bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+ names(DR) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
+               "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
   testthat::expect_equal(DR_test,DR)
 })
 
@@ -609,5 +624,6 @@ testthat::test_that("exposure_DR env_data", {
                                bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611", env_data = ndvi_data)
  DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50,
                         bandwidth = 200, env_data = ndvi_data, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+ names(DR) = "env_exposure"
   testthat::expect_equal(DR_test, DR)
 })
