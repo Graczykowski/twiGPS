@@ -19,5 +19,12 @@ Useful links:
 \author{
 \strong{Maintainer}: Igor Graczykowski \email{igor.graczykowski@gmail.com}
 
+Authors:
+\itemize{
+  \item Jakub Nowosad \email{nowosad.jakub@gmail.com} (\href{https://orcid.org/0000-0002-1057-3721}{ORCID})
+  \item Marta Jankowska \email{mjankowska@coh.org} (\href{https://orcid.org/0000-0002-8688-1181}{ORCID})
+  \item Jay Yang \email{jyang@coh.org} (\href{https://orcid.org/0000-0003-4246-0470}{ORCID})
+}
+
 }
 \keyword{internal}
