@@ -22,6 +22,7 @@ Imports:
   rlang
 Suggests:
   testthat
+Remotes: rspatial/terra
 URL: https://github.com/Graczykowski/twiGPS
 BugReports: https://github.com/Graczykowski/twiGPS/issues
 Depends: 
