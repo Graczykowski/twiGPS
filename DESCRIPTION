@@ -33,7 +33,6 @@ Imports:
   BBmisc
 Suggests:
   testthat
-Remotes: rspatial/terra@8c3e11f
 URL: https://github.com/Graczykowski/twiGPS
 BugReports: https://github.com/Graczykowski/twiGPS/issues
 Depends: 
