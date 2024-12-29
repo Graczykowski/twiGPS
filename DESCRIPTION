@@ -22,7 +22,7 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
 Imports:
-  terra (>= 1.7.83),
+  terra (>= 1.7.81),
   sf,
   dplyr,
   geosphere,
