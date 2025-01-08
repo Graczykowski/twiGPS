@@ -147,7 +147,7 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
 
   # get spatial data with correct crs
   if (!missing(data)){
-    if (inherits(data, "data.frame")){
+    if (inherits(data, "data.frame") && !inherits(data, "sf")){
       if (!missing(coords)){
 
         if (all(coords %in% colnames(data))){

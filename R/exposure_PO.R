@@ -124,7 +124,7 @@ exposure_PO = function(data, coords, cellsize, env_data, output_crs,
 
   # get spatial data with correct crs
   if (!missing(data)){
-    if (inherits(data, "data.frame")){
+    if (inherits(data, "data.frame") && !inherits(data, "sf")){
       if (!missing(coords)){
 
         if (all(coords %in% colnames(data))){

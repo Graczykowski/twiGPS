@@ -5,7 +5,7 @@ start_processing = function(data, coords, NA_val, env_data, grid_extent,
                             input_crs, output_crs, verbose){
 
   # get spatial data
-  if (inherits(data, "data.frame")) {
+  if (inherits(data, "data.frame") && !inherits(data, "sf")) {
     if (missing(input_crs)){ # implement so missing works
       input_crs = ""
     }
