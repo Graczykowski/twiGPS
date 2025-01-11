@@ -1,4 +1,4 @@
-# library(twiGPS)
+library(twiGPS)
 
 test_exposure_PO = function(data, x, y, NA_val, cellsize, group_split, env_data, env_field, env_buff,
          normalize = FALSE, norm_method = "range", norm_group = FALSE, grid_extent,

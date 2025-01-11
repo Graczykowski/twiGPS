@@ -1,9 +1,8 @@
-library(twiGPS)
+# library(twiGPS)
 
-test_exposure_DR = function(data, x, y, NA_val, cellsize, group_split, bandwidth, env_data,
-                       env_field, env_buff, normalize = FALSE, norm_method = "range",
-                       norm_group = FALSE, grid_extent, input_crs, output_crs, filepath){
-
+test_exposure_KDE = function(data, x, y, NA_val, cellsize, group_split, bandwidth, env_data,
+                        env_field, env_buff, normalize = FALSE, norm_method = "range",
+                        norm_group = FALSE, grid_extent, input_crs, output_crs, filepath){
 
   # handle stars objects rasters as env_data
   if (!missing(env_data)) {
@@ -131,16 +130,17 @@ test_exposure_DR = function(data, x, y, NA_val, cellsize, group_split, bandwidth
     #   # crop ext of each rast
     #   grid_crop = terra::crop(grid_rast, new_group_extent)
     #
-    #   dr_rast = spat_dr(data_i, grid_crop, bandwidth)
+    #   kde_rast = spat_kde(data_i, grid_crop, bandwidth)
     # } else {
-    #   dr_rast =  spat_dr(data_i, grid_rast, bandwidth)
+    #   kde_rast =  spat_kde(data_i, grid_rast, bandwidth)
     # }
+
     ### UNCOMMENT IF EVERY RAST SHOULD HAVE SEPERATE EXTENT
 
 
     ### UNCOMMENT IF EVERY RAST SHOULD HAVE SAME EXTENT
 
-    dr_rast = spat_dr(data_i, grid_rast, bandwidth)
+    kde_rast = spat_kde(data_i, grid_rast, bandwidth)
 
     ### UNCOMMENT IF EVERY RAST SHOULD HAVE SAME EXTENT
 
@@ -148,23 +148,24 @@ test_exposure_DR = function(data, x, y, NA_val, cellsize, group_split, bandwidth
       if (norm_method != "range" && norm_group) {
         message(paste0('Norm_method is "', norm_method, '" - norm_group is TRUE is applicable only for norm_method "range". Norm group argument ignored. Normalizing each group seperately'))
       }
-      # calculate normalization to 0-1 range
-      dr_rast = normalization(dr_rast, method = norm_method)
+      # calculate normalization
+      kde_rast = normalization(kde_rast, method = norm_method)
 
     }
 
-    dr_rast = terra::subst(dr_rast, from = 0, to = NA)
+    kde_rast = terra::subst(kde_rast, from = 0, to = NA)
+
 
     ### UNCOMMENT IF EVERY RAST SHOULD BE A SEPERATE ELEMENT IN LIST
 
-    # act_out[length(act_out) + 1] = as.list(dr_rast)
+    # act_out[length(act_out) + 1] = as.list(kde_rast)
 
     ### UNCOMMENT IF EVERY RAST SHOULD BE A SEPERATE ELEMENT IN LIST
 
 
     ### UNCOMMENT IF ALL RAST AS STACK RASTER
 
-    act_out = append(act_out, dr_rast)
+    act_out = append(act_out, kde_rast)
 
     ### UNCOMMENT IF ALL RAST AS STACK RASTER
   }
@@ -193,7 +194,9 @@ test_exposure_DR = function(data, x, y, NA_val, cellsize, group_split, bandwidth
   }
 
   return(output)
+
 }
+
 start_processing = function(data, x, y, NA_val, env_data, grid_extent,
                             input_crs, output_crs){
 
@@ -429,6 +432,26 @@ normalization = function(data, method, range = c(0, 1)){
     )
   }
 }
+spat_kde = function(x, ref, bw){
+
+  # coords of each ref cell center
+  gx = terra::crds(ref)[,1] |> unique()
+  gy = terra::crds(ref)[,2] |> unique()
+
+  # distance from each x/y ref cell center to each x/y x points (squared)
+
+  kde_val = kde(x, gx, gy, bw)
+
+  output_list = list(x = gx, y = gy, z = kde_val)
+
+  # create df of x/y coords and val
+  pts = data.frame(expand.grid(x = output_list$x, y = output_list$y),
+                   z = as.vector(array(output_list$z,  length(output_list$z))))
+  # create points SpatVector
+  pts = terra::vect(pts, geom = c("x", "y"))
+  # rasterize to ref
+  return(terra::rasterize(pts, ref, field = "z"))
+}
 kde = function(points, ref_uq_x, ref_uq_y, bw) {
   ax <- outer(ref_uq_x, terra::crds(points)[, 1], "-" ) ^ 2
   ay <- outer(ref_uq_y, terra::crds(points)[, 2], "-" ) ^ 2
@@ -474,156 +497,102 @@ kde = function(points, ref_uq_x, ref_uq_y, bw) {
   out = t(density_mx) * (3/pi) / bw ^ 2
   return(out)
 }
-kde_points = function(vect_x, vect_y, bw){
 
-  # apply for each cell coords seperately
-  kde_p = mapply(function(x, y) {
-    #distance betweeen each point
-    ax_p = (vect_x - x) ^ 2
-    ay_p = (vect_y - y) ^ 2
-
-    # boolean if dist within search radius
-    ax_p_T = ax_p <= bw ^ 2
-    ay_p_T = ay_p <= bw ^ 2
-
-    # choose dist^ 2 within search radius
-    x_T = which(ax_p_T)
-    y_T = which(ay_p_T)
-
-    # index of coords of which both x and y within search radius
-    xy_T = intersect(x_T, y_T)
-
-    # calculate dist ^ 2 and choose thoso within search radius
-    xy_val = ax_p[xy_T] + ay_p[xy_T]
-    xy_val = xy_val[xy_val < bw ^ 2]
-
-    #
-    xy_calc = (xy_val / bw ^ 2 * (-1) + 1) ^ 2
-
-    xy_out = sum(xy_calc)
-
-
-  }, x = vect_x, y =  vect_y) * (3/pi) / bw ^ 2
-
-  return(kde_p)
-}
-spat_dr = function(x, ref, bw) {
-  gx = terra::crds(ref)[,1] |> unique()
-  gy = terra::crds(ref)[,2] |> unique()
-
-  # distance from each x/y ref cell center to each x/y x points (squared)
-
-  kde_val = kde(x, gx, gy, bw)
-  dr_val = kde_points(terra::crds(x)[,1], terra::crds(x)[,2], bw)
-  # DR EVAL
-  dr_calc = stats::ecdf(dr_val)(as.vector(kde_val))
-
-  output_list = list(x = gx, y = gy, z = dr_calc)
-
-  # create df of x/y coords and val
-  pts = data.frame(expand.grid(x = output_list$x, y = output_list$y),
-                   z = output_list$z)
-  # create points SpatVector
-  pts = terra::vect(pts, geom = c("x", "y"))
-  # rasterize to ref
-  return(terra::rasterize(pts, ref, field = "z"))
-}
-
-testthat::test_that("exposure_DR normalize range", {
- DR_test =  exposure_DR(data = geolife_sandiego ,coords = c("lon", "lat"), cellsize = 50, normalize = "range",
+testthat::test_that("exposure_KDE normalize range", {
+  KDE_test =  exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
-                        bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- names(DR) = "activity_space"
-  testthat::expect_equal(DR_test,DR)
+  KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  names(KDE) = "activity_space"
+  testthat::expect_equal(KDE_test,KDE)
 })
 
-testthat::test_that("exposure_DR normalize center", {
- DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "center",
-                               bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
-                        bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- names(DR) = "activity_space"
-  testthat::expect_equal(DR_test,DR)
+testthat::test_that("exposure_KDE normalize center", {
+  KDE_test =  exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "center",
+                                bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
+                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  names(KDE) = "activity_space"
+  testthat::expect_equal(KDE_test,KDE)
 })
 
-testthat::test_that("exposure_DR normalize scale", {
- DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "scale",
-                               bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
-                        bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- names(DR) = "activity_space"
-  testthat::expect_equal(DR_test,DR)
+testthat::test_that("exposure_KDE normalize scale", {
+  KDE_test =  exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "scale",
+                                bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
+                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  names(KDE) = "activity_space"
+  testthat::expect_equal(KDE_test,KDE)
 })
 
-testthat::test_that("exposure_DR normalize standardize", {
- DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "standardize",
-                               bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
-                        bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- names(DR) = "activity_space"
-
-  testthat::expect_equal(DR_test,DR)
+testthat::test_that("exposure_KDE normalize standardize", {
+  KDE_test =  exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "standardize",
+                                bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
+                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  names(KDE) = "activity_space"
+  testthat::expect_equal(KDE_test,KDE)
 })
 
 
-testthat::test_that("exposure_DR normalize range groups", {
- DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
-                       bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+testthat::test_that("exposure_KDE normalize range groups", {
+  KDE_test = exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                         bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- names(DR) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
-               "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
- testthat::expect_equal(DR_test,DR)
+  KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+                         bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  names(KDE) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
+                "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
+  testthat::expect_equal(KDE_test,KDE)
 })
 
-testthat::test_that("exposure_DR normalize range groups", {
- DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
-                       bandwidth = 200, norm_group = TRUE, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+testthat::test_that("exposure_KDE normalize range groups", {
+  KDE_test = exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                         bandwidth = 200, norm_group = TRUE, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- names(DR) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
-               "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
- testthat::expect_equal(DR_test,DR)
+  KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
+                         bandwidth = 200, norm_group = TRUE, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  names(KDE) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
+                 "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
+  testthat::expect_equal(KDE_test,KDE)
 })
 
-testthat::test_that("exposure_DR normalize center groups", {
- DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "center",
-                               bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
-                        bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- names(DR) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
-               "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
- testthat::expect_equal(DR_test,DR)
+testthat::test_that("exposure_KDE normalize center groups", {
+  KDE_test =  exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "center",
+                                bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
+                         bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  names(KDE) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
+                 "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
+  testthat::expect_equal(KDE_test,KDE)
 })
 
-testthat::test_that("exposure_DR normalize scale groups", {
- DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "scale",
-                               bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
-                        bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- names(DR) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
-               "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
-   testthat::expect_equal(DR_test,DR)
+testthat::test_that("exposure_KDE normalize scale groups", {
+  KDE_test =  exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "scale",
+                                bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
+                         bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  names(KDE) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
+                 "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
+  testthat::expect_equal(KDE_test,KDE)
 })
 
-testthat::test_that("exposure_DR normalize standardize groups", {
- DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "standardize",
-                               bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
-                        bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- names(DR) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
-               "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
-  testthat::expect_equal(DR_test,DR)
+testthat::test_that("exposure_KDE normalize standardize groups", {
+  KDE_test =  exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "standardize",
+                                bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
+                         bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  names(KDE) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
+                 "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
+  testthat::expect_equal(KDE_test,KDE)
 })
 
-testthat::test_that("exposure_DR env_data", {
+testthat::test_that("exposure_KDE env_data", {
   ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif", package = "twiGPS"))
 
- DR_test = exposure_DR(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50,
-                               bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611", env_data = ndvi_data)
- DR =  test_exposure_DR(data = geolife_sandiego, x = lon, y = lat, cellsize = 50,
-                        bandwidth = 200, env_data = ndvi_data, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
- names(DR) = "env_exposure"
-  testthat::expect_equal(DR_test, DR)
+  KDE_test =  exposure_KDE(data = geolife_sandiego ,coords = c("lon", "lat"), cellsize = 50,
+                                bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611", env_data = ndvi_data)
+  KDE =  test_exposure_KDE(data = geolife_sandiego, x = lon, y = lat, cellsize = 50,
+                         bandwidth = 200, env_data = ndvi_data, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+  names(KDE) = "env_exposure"
+
+  testthat::expect_equal(KDE_test, KDE)
 })
