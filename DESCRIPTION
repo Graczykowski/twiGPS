@@ -29,8 +29,7 @@ Imports:
   tidyr,
   stats,
   exactextractr,
-  rlang,
-  BBmisc
+  rlang
 Suggests:
     testthat (>= 3.0.0)
 URL: https://github.com/Graczykowski/twiGPS

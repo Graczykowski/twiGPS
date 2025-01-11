@@ -252,13 +252,290 @@ test_exposure_LS = function(data, x, y, NA_val, time_data, time_unit = "mins",
   return(output)
 
 }
+start_processing = function(data, x, y, NA_val, env_data, grid_extent,
+                            input_crs, output_crs){
+
+  # get spatial data
+  if (all(class(data) == "data.frame")) {
+    if (missing(input_crs)){ # implement so missing works
+      input_crs = ""
+    }
+    if (!missing(NA_val)) {
+      if (is.numeric(NA_val)){
+        n_row = nrow(data)
+        data = data[data[x] != NA_val & data[y] != NA_val,]
+        warning(paste0("Removing rows containing default NA value ",
+                       NA_val, " in x and y columns - removing ", n_row - nrow(data), " rows"))
+      } else {
+        warning("Invalid NA_val argument - NA_val is not numeric. Ignoring NA_val argument")
+      }
+
+    }
+    if (any(is.na(data[,c(x,y)]))){
+      n_row_NA = nrow(data)
+      data = tidyr::drop_na(data, x, y)
+      warning(paste0("Removing rows containing NA in x and y columns - removing", n_row_NA - nrow(data), " rows"))
+
+    }
+    data_points = terra::vect(x = data, geom = c(x, y), crs = input_crs)
+
+  } else if (any(class(data) == "sf") && all(sf::st_geometry_type(data) == "POINT")){
+    data_points = terra::vect(data)
+
+    if (!missing(input_crs)){
+      warning("Ignoring input_crs argument")
+    }
+
+  } else if (any(class(data) == "SpatVector") && terra::geomtype(data) == "points") {
+    data_points = data
+    if (!missing(input_crs)){
+      warning("Ignoring input_crs argument")
+    }
+  } else {
+    stop("Object data is neither data.frame, sf nor SpatVector class")
+  }
+
+  data_crs = terra::crs(data_points)
+
+  # crs
+  if (!missing(output_crs)){
+    if (data_crs == "") {
+      message("Setting data crs to output_crs")
+      terra::crs(data_points) = output_crs
+      data_proj = data_points
+    } else {
+      message("Projecting data to output_crs")
+      data_proj = terra::project(data_points, output_crs)
+    }
+  } else if (!missing(grid_extent) && class(grid_extent) == "SpatRaster") {
+    if (data_crs == "") {
+      message("Setting data crs to grid_extent crs")
+      terra::crs(data_points) = terra::crs(grid_extent)
+      data_proj = data_points
+    } else {
+      message("Projecting data to grid_extent crs")
+      data_proj = terra::project(data_points, grid_extent)
+    }
+  } else if (data_crs != "") { # any invalid/empty crs
+    data_proj = data_points
+  } else if (!missing(env_data)) {
+    message("Setting data crs to environmental data crs")
+    terra::crs(data_points) = terra::crs(env_data)
+    data_proj = data_points
+  } else {
+    message("No crs specified")
+    data_proj = data_points
+  }
+  # crop to grid_extent
+  if (!missing(grid_extent)){
+    if (class(grid_extent) == "SpatExtent"){
+      data_proj = terra::crop(data_proj, grid_extent)
+    } else {
+      if (terra::crs(data_proj) != terra::crs(grid_extent)){
+        grid_rast = terra::project(grid_rast, terra::crs(data_proj))
+      }
+      data_proj = terra::crop(data_proj, terra::ext(grid_extent))
+    }
+  }
+
+  return(data_proj)
+
+}
+calc_grid = function(x, bandwidth, cellsize, env_data, grid_extent, is_LS = FALSE){
+
+  if (!missing(grid_extent)){ # grid_extent as ext of grid rast
+
+    extent = grid_extent
+  } else { # calculate extent
+    extent = terra::ext(x)
+    if (!missing(bandwidth)) { # for KDE/DR expand extent by bandwidth
+      if(!is_LS){
+        extent = c(terra::xmin(extent) - bandwidth, terra::xmax(extent) + bandwidth,
+                   terra::ymin(extent) - bandwidth, terra::ymax(extent) + bandwidth)
+      } else { # for LS in lon/lat crs bandwidth is still in meters (terra::buffer)
+        temp_buff = terra::buffer(x, bandwidth)
+        extent = terra::ext(temp_buff)
+      }
+
+    }
+  }
+
+
+  if(!missing(cellsize) && length(cellsize) == 1 && is.numeric(cellsize) && cellsize > 0) { # cellsize included
+
+    if (suppressWarnings(!is.na(terra::is.lonlat(x)) && terra::is.lonlat(x))){
+      # crs units in degrees
+      # is.na if empty crs to skip error
+      warning("Cellsize is not stable - cells are not rectangular")
+
+      if (!missing(bandwidth) && bandwidth > 0.1 && !is_LS) {
+        message(paste0("CRS is in lontitude/latitude and bandwidth is ", bandwidth,
+                       " - bandwidth is calculated in CRS units. Is bandwidth in correct unit?"))
+      }
+
+      dist_lon = geosphere::distm(c(extent[1], extent[3]), c(extent[2], extent[3]),
+                                  fun = geosphere::distHaversine)
+      dist_lat = geosphere::distm(c(extent[1], extent[3]), c(extent[1], extent[4]),
+                                  fun = geosphere::distHaversine)
+
+      # number of cells
+      x_cells = (dist_lon / cellsize) |> as.integer()
+      y_cells = (dist_lat / cellsize) |> as.integer()
+
+      # empty_rast for units in degrees
+      grid_rast = terra::rast(crs = terra::crs(x), nrows=y_cells,
+                              ncols=x_cells, extent = extent)
+
+    } else {
+      grid_rast = terra::rast(crs = terra::crs(x), extent = extent,
+                              resolution = cellsize)
+    }
+
+  } else if  (!missing(env_data) && any(class(env_data) == "SpatRaster")){ #if incorrect cellsize and env_data exists
+    warning("Cellsize invalid or not set - using cellsize from env_data")
+
+    if (terra::linearUnits(env_data) == terra::linearUnits(x)){
+      # project env data with the same cellsize
+      env_data_proj = terra::project(env_data, terra::crs(x), res = terra::res(env_data)[1])
+      # if env_data in lat/lon only quadratic cells
+
+    } else {
+      env_data_proj = terra::project(env_data, terra::crs(x))
+    }
+    if (missing(grid_extent)){
+      # extent modified to preserve cellsize
+      grid_rast = terra::crop(env_data_proj, extent)
+    } else {
+      # if grid_extent specified and missing cellsize grid_extent is prior to
+      # cellsize and cellsize is slightly modified
+      grid_rast = env_data_proj
+      terra::ext(grid_rast) = extent
+    }
+  } else {
+    stop("Invalid or missing cellsize - provide valid cellsize or env_data")
+  }
+  return(grid_rast)
+}
+env_vect = function(env, env_buff, env_field, grid){
+
+  if (!missing(env_buff)) { # create buffer around vector data
+    if (length(env_buff) == 1 && is.numeric(env_buff) && env_buff > 0){
+      env_proj = terra::project(env, terra::crs(grid))
+      ## TERRA::BUFFER SOMETIMES CRUSHES WITH BIG LINE VECTOR DATASETS
+      #env = terra::buffer(env_proj, env_buff)
+      ## TEMPORARY FIX: USE SF::ST_BUFFER
+      env = env_proj |> sf::st_as_sf() |> sf::st_buffer(env_buff) |> terra::vect()
+
+    } else {
+      warning("Invalid env_buff argument - ignoring creation of buffer")
+    }
+  }
+
+  if (!missing(env_field)){ # choose field to rasterize
+    env_f_enq = rlang::enquo(env_field)
+    if (rlang::quo_name(env_f_enq) %in% terra::names(env)){
+      env = terra::rasterize(env, grid, field = rlang::quo_name(env_f_enq), fun = "sum")
+    } else {
+      warning("Invalid env_field argument - env_field is not a column name in data. Ignoring env_field argument")
+      env = terra::rasterize(env, grid, fun = "sum")
+    }
+  } else {
+    env = terra::rasterize(env, grid, fun = "sum")
+  }
+
+  return(env)
+}
+trajectories_fun = function(data){
+
+  t_name = c(names(data))[grepl('time', c(names(data)))]
+  lst_name = paste(t_name[which.max(nchar(t_name))], "_1", sep = "")
+
+  trajectories_out = data |>
+    sf::st_as_sf() |> # change to sf object to change points to linestring later
+    #filter to the study id defined by the argument
+    #define start and end points of line
+    dplyr::mutate(
+      line_id = dplyr::row_number(),#an id for each "line segment"
+      x_start= sf::st_coordinates(geometry)[,1],
+      y_start= sf::st_coordinates(geometry)[,2],
+      x_end = dplyr::lead(x_start),
+      y_end = dplyr::lead(y_start)
+    ) |>
+    dplyr::ungroup() |>
+    sf::st_set_geometry(NULL) |>
+    #exclude the last observation, which has no "lead", and will be missing.
+    dplyr::filter(is.na(x_end)==FALSE) |>
+    # Make the data long form so that each point has two observations
+    tidyr::pivot_longer(
+      # select variables to pivot longer.
+      cols = c(x_start, y_start, x_end, y_end),
+      #value goes to "x/y", and time goes to "_start/end"
+      names_to = c(".value", lst_name),
+      names_repair = "unique",
+      names_sep = "_"#the separator for the column name
+    ) |>
+    # create sf object once again
+    sf::st_as_sf(coords = c("x", "y"), crs= sf::st_crs(data)) |>
+    dplyr::group_by(line_id) |>
+    #see Edzer's answer here:https://github.com/r-spatial/sf/issues/851
+    #do_union=FALSE is needed.
+    dplyr::summarize(do_union = FALSE) |>
+    sf::st_cast("LINESTRING") |> # cast linestring type
+    sf::st_as_sf() |>
+    dplyr::ungroup()
+
+  return(trajectories_out)
+}
+normalization = function(data, method, range = c(0, 1)){
+  if (inherits(data, "SpatRaster") && diff(c(min(terra::minmax(data)[1,], na.rm = TRUE),
+                                             max(terra::minmax(data)[2,], na.rm = TRUE))) == 0 ) {
+    switch(method,
+           center = terra::scale(data, center = TRUE, scale = FALSE),
+           # range = (data - terra::minmax(data, na.rm = TRUE)[1,]) /
+           #   diff(terra::minmax(data, na.rm = TRUE)) * diff(range) + range[1L],
+           #without range arg
+           range = data / max(terra::minmax(data)[2,], na.rm = TRUE),
+           standardize = terra::scale(data, center = TRUE, scale = FALSE),
+           scale = data)
+  } else if (inherits(data, "numeric") && length(unique(data[!is.na(data)])) == 1){
+    switch(method,
+           center = terra::scale(data, center = TRUE, scale = FALSE),
+           # range = (data - terra::minmax(data, na.rm = TRUE)[1,]) /
+           #   diff(terra::minmax(data, na.rm = TRUE)) * diff(range) + range[1L],
+           #without range arg
+           range = data / max(data, na.rm = TRUE),
+           standardize = terra::scale(data, center = TRUE, scale = FALSE),
+           scale = data)
+  } else if (inherits(data, "numeric") && length(unique(data[!is.na(data)])) != 1) {
+    switch(method,
+           # range = (data - terra::minmax(data, na.rm = TRUE)[1,]) /
+           #   diff(terra::minmax(data, na.rm = TRUE)) * diff(range) + range[1L],
+           #without range arg
+           range = data / max(data, na.rm = TRUE),
+           standardize = scale(data, center = TRUE, scale = TRUE),
+           center = scale(data, center = TRUE, scale = FALSE),
+           scale = scale(data, center = FALSE, scale = stats::sd(data, na.rm = TRUE))
+    )
+  } else {
+    switch(method,
+           # range = (data - terra::minmax(data, na.rm = TRUE)[1,]) /
+           #   diff(terra::minmax(data, na.rm = TRUE)) * diff(range) + range[1L],
+           #without range arg
+           range = data / max(terra::minmax(data)[2,], na.rm = TRUE),
+           standardize = terra::scale(data, center = TRUE, scale = TRUE),
+           center = terra::scale(data, center = TRUE, scale = FALSE),
+           scale = terra::scale(data, center = FALSE, scale = terra::global(data, "sd", na.rm = TRUE)[[1]])
+    )
+  }
+}
 testthat::test_that("exposure_LS normalize range", {
   LS_test = exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                         time_data = dateTime, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
+
   LS =  test_exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "range",
                          time_data = dateTime, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   names(LS) = "activity_space"
-  testthat::expect_equal(LS_test,LS)
+  testthat::expect_true(terra::all.equal(LS_test,LS))
 })
 
 testthat::test_that("exposure_LS normalize center", {
@@ -267,7 +544,7 @@ testthat::test_that("exposure_LS normalize center", {
   LS =  test_exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "center",
                          time_data = dateTime, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   names(LS) = "activity_space"
-  testthat::expect_equal(LS_test,LS)
+  testthat::expect_true(terra::all.equal(LS_test,LS))
 })
 
 testthat::test_that("exposure_LS normalize scale", {
@@ -276,7 +553,7 @@ testthat::test_that("exposure_LS normalize scale", {
   LS =  test_exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "scale",
                          time_data = dateTime, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   names(LS) = "activity_space"
-  testthat::expect_equal(LS_test,LS)
+  testthat::expect_true(terra::all.equal(LS_test,LS))
 })
 
 testthat::test_that("exposure_LS normalize standardize", {
@@ -285,7 +562,7 @@ testthat::test_that("exposure_LS normalize standardize", {
   LS =  test_exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50, normalize = TRUE, norm_method = "standardize",
                          time_data = dateTime, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   names(LS) = "activity_space"
-  testthat::expect_equal(LS_test,LS)
+  testthat::expect_true(terra::all.equal(LS_test,LS))
 })
 
 testthat::test_that("exposure_LS normalize range groups", {
@@ -295,7 +572,7 @@ testthat::test_that("exposure_LS normalize range groups", {
                          time_data = dateTime, bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   names(LS) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
                 "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
-  testthat::expect_equal(LS_test,LS)
+  testthat::expect_true(terra::all.equal(LS_test,LS))
 })
 
 testthat::test_that("exposure_LS normalize range norm groups", {
@@ -305,7 +582,7 @@ testthat::test_that("exposure_LS normalize range norm groups", {
                          time_data = dateTime, bandwidth = 200, norm_group = TRUE, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   names(LS) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
                 "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
-  testthat::expect_equal(LS_test,LS)
+  testthat::expect_true(terra::all.equal(LS_test,LS))
 })
 
 testthat::test_that("exposure_LS normalize center groups", {
@@ -315,7 +592,7 @@ testthat::test_that("exposure_LS normalize center groups", {
                          time_data = dateTime, bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   names(LS) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
                 "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
-  testthat::expect_equal(LS_test,LS)
+  testthat::expect_true(terra::all.equal(LS_test,LS))
 })
 
 testthat::test_that("exposure_LS normalize scale groups", {
@@ -325,7 +602,7 @@ testthat::test_that("exposure_LS normalize scale groups", {
                          time_data = dateTime, bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   names(LS) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
                 "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
-  testthat::expect_equal(LS_test,LS)
+  testthat::expect_true(terra::all.equal(LS_test,LS))
 })
 
 testthat::test_that("exposure_LS normalize standardize groups", {
@@ -335,7 +612,7 @@ testthat::test_that("exposure_LS normalize standardize groups", {
                          time_data = dateTime, bandwidth = 200, group_split = date, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   names(LS) = c("2011-08-17", "2011-08-18", "2011-08-19", "2011-08-20",
                 "2011-08-21", "2011-08-22", "2011-08-23", "2011-08-24")
-  testthat::expect_equal(LS_test,LS)
+  testthat::expect_true(terra::all.equal(LS_test,LS))
 })
 
 testthat::test_that("exposure_LS env_data", {
@@ -346,6 +623,6 @@ testthat::test_that("exposure_LS env_data", {
   LS =  test_exposure_LS(data = geolife_sandiego, x = lon, y = lat, cellsize = 50,
                          time_data = dateTime, bandwidth = 200, env_data = ndvi_data, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
   names(LS) = "env_exposure"
-  testthat::expect_equal(LS_test, LS)
+  testthat::expect_true(terra::all.equal(LS_test,LS))
 })
 
