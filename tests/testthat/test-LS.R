@@ -1,5 +1,3 @@
-# library(twiGPS)
-
 testthat::test_that("exposure_LS normalize range", {
   LS_test = exposure_LS(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                         time_data = dateTime, bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
