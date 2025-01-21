@@ -1,3 +1,4 @@
+source("testthat-helper.R")
 testthat::test_that("exposure_KDE normalize range", {
   KDE_test =  exposure_KDE(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                         bandwidth = 200, input_crs = "EPSG:4326", output_crs = "EPSG:32611")

@@ -8,6 +8,5 @@
 
 library(testthat)
 library(twiGPS)
-source("tests/testthat/testthat-helper.R")
 
 test_check("twiGPS")
