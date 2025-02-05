@@ -231,11 +231,8 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
     }
   }
 
-
-  buff_svc = terra::vect()
+  buff_svc = terra::svc()
   output = list()
-
-
 
   for (data_i in data_iter) {
 
@@ -246,9 +243,7 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
     traj_buff = trajectories["line_id"] |>
       terra::buffer(bandwidth)
 
-
     traj_buff$act = 1
-
 
     if (!missing(time_data)){
       duration_line_id = data_i |> as.data.frame() |>
@@ -264,7 +259,6 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
         if (normalize != "range" && norm_group && verbose) {
           message(paste0('Normalization method is "', normalize, '" - \'norm_group\' = TRUE is applicable only for normalization method "range". \'Norm_group\' argument ignored, each group is normalized seperately'))
         }
-
 
         duration_line_id$time_elapsed = normalization(duration_line_id$time_elapsed,
                                                           method = normalize)
@@ -283,13 +277,9 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
       traj_buff$name = unique(data_i[[enq_group_split]])
     }
 
-
-
     buff_svc = c(buff_svc, traj_buff)
 
   }
-  #remove empty vector
-  buff_svc = buff_svc[-1]
 
   if(!missing(normalize) && !missing(time_data) && norm_group && length(data_iter) > 1 &&
      normalize == "range"){
