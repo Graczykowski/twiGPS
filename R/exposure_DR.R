@@ -188,10 +188,14 @@ exposure_DR = function(data, coords, bandwidth, cellsize, env_data, output_crs,
     data_iter = list(data_proj) # only one item for for loop
   } else {
     enq_group_split = rlang::quo_name(rlang::enquo(group_split))
-    if (enq_group_split %in% terra::names(data_proj)){
+    if (enq_group_split %in% names(data_proj)){
+
+      #data_iter = data_proj[[enq_group_split]][[1]]
+
       data_iter = terra::split(data_proj, enq_group_split) # split data_proj by group_split
       if (verbose) {
-        message(paste0("Data is split into ", length(data_iter), " groups"))
+        message(paste0("Data is split into ",  length(data_iter), #length(unique(data_iter)),
+                       " groups"))
       }
     } else {
       data_iter = list(data_proj)
@@ -200,37 +204,75 @@ exposure_DR = function(data, coords, bandwidth, cellsize, env_data, output_crs,
       }
     }
   }
+  # rm(data_proj)
+  # gc()
 
-  act_out = list()
+  n_calculations = length(data_iter)
+  index = 1
+  #n_calculations = length(unique(data_iter))
 
+  act_out = vector('list', n_calculations)
+
+
+
+
+  #for (data_i in ifelse(n_calculations == 1, list(data_iter), list(unique(data_iter)))[[1]]){
   for (data_i in data_iter){
 
-    dr_rast = spat_dr(data_i, grid_rast, bandwidth)
+    if (n_calculations != 1 && verbose){
+      start_time = Sys.time()
+      #index = match(data_i, unique(data_iter))
+    }
 
-    if (!missing(group_split) && enq_group_split %in% names(data_proj)){
+    # if (class(data_i) != "SpatVector"){
+    #   data_i = terra::subset(data_proj, data_iter == data_i)
+    # }
+
+
+
+    dr_rast = spat_dr(data_i, grid_rast, bandwidth, n_calculations)
+
+
+
+    if (!missing(group_split) && class(data_iter) != "SpatVector"){
       r_name = unique(data_i[enq_group_split][[1]])
     } else {
       r_name = "activity_space"
     }
     names(dr_rast) = r_name
 
-    if (!missing(normalize) && (!norm_group || normalize != "range" || length(data_iter) == 1)){
+    if (!missing(normalize) && (!norm_group || normalize != "range" || n_calculations == 1)){
       if (normalize != "range" && norm_group && verbose) {
         message(paste0('Normalization method is "', normalize, '" - \'norm_group\' = TRUE is applicable only for normalization method "range". \'Norm_group\' argument ignored, each group is normalized seperately'))
       }
-      # calculate normalization to 0-1 range
+      # calculate normalization
       dr_rast = normalization(dr_rast, method = normalize)
 
     }
 
     dr_rast = terra::subst(dr_rast, from = 0, to = NA)
 
-    act_out = suppressWarnings(append(act_out, dr_rast))
+    act_out[[index]] = dr_rast
+
+
+    if (n_calculations != 1 && verbose) {  # Update every 5 calculations
+      end_time = Sys.time()
+      time = difftime(end_time, start_time, units = "s") |> as.numeric() |> round(1)
+      cat(sprintf("\rProcessing: %d/%d calculations [%0.1f s]", index, n_calculations, time),'
+          ')
+      flush.console()  # Ensure it prints in real-time
+    }
+    index = index + 1
+
+    # rm(dr_rast)
+    # gc()
   }
+  act_out = terra::rast(act_out)
 
   if (!missing(normalize) && normalize == "range" && norm_group && length(data_iter) > 1){
 
     act_out = normalization(act_out, method = "range")
+
   }
 
   if (!missing(env_data)){
@@ -238,7 +280,7 @@ exposure_DR = function(data, coords, bandwidth, cellsize, env_data, output_crs,
     env_data_proj = terra::project(env_data, grid_rast)
 
     rast_env_dr = act_out * env_data_proj
-    if (missing(group_split) || !enq_group_split %in% names(data_proj)){
+    if (missing(group_split) || class(data_iter) == "SpatVector"){
       names(rast_env_dr) = "env_exposure"
     }
 

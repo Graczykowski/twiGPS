@@ -218,10 +218,14 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
     data_iter = list(data_proj) # only one item for for loop
   } else {
     enq_group_split = rlang::quo_name(rlang::enquo(group_split))
-    if (enq_group_split %in% terra::names(data_proj)){
+    if (enq_group_split %in% names(data_proj)){
+
+      #data_iter = data_proj[[enq_group_split]][[1]]
+
       data_iter = terra::split(data_proj, enq_group_split) # split data_proj by group_split
       if (verbose) {
-        message(paste0("Data is split into ", length(data_iter), " groups"))
+        message(paste0("Data is split into ",  length(data_iter), #length(unique(data_iter)),
+                       " groups"))
       }
     } else {
       data_iter = list(data_proj)
@@ -233,33 +237,49 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
 
 
   buff_svc = terra::vect()
-  output = list()
+
+  n_calculations = length(data_iter)
+  index = 1
+
+  output = vector('list', n_calculations)
 
 
 
-  for (data_i in data_iter) {
+  for (data_i in data_iter){
+
+    # if (n_calculations != 1 && verbose){
+    #   buff_start_time = Sys.time()
+    # }
+
+    if (n_calculations != 1 && verbose){
+      start_time = Sys.time()
+    }
+
 
     # create line segments from spatial points
-    trajectories = terra::vect(trajectories_fun(data_i))
+    trajectories = trajectories_fun(data_i)
+
+    terra::crs(trajectories) = terra::crs(grid_rast)
+
 
     # create buffers over line segments
-    traj_buff = trajectories["line_id"] |>
-      terra::buffer(bandwidth)
-
+    traj_buff = terra::buffer(trajectories, bandwidth)
 
     traj_buff$act = 1
 
 
     if (!missing(time_data)){
-      duration_line_id = data_i |> as.data.frame() |>
-        dplyr::mutate(time_elapsed = as.numeric(difftime(dplyr::lead(.data[[time_cname]]),
-                                                         .data[[time_cname]], units = time_unit)),
-                      line_id = dplyr::row_number()) |>
-        dplyr::select(.data$line_id, .data$time_elapsed)
-      # last NA value set to 0 for normalization to not set lowest time value to 0
+
+      duration_line_id =  as.data.frame(data_i)
+
+      duration_line_id$time_elapsed = as.numeric(difftime(c(duration_line_id[[time_cname]][-1], NA), duration_line_id[[time_cname]], units = time_unit))
+      duration_line_id$line_id = 1:nrow(duration_line_id)
+
       duration_line_id$time_elapsed[nrow(duration_line_id)] = 0
 
-      if(!missing(normalize) && (!norm_group || normalize != "range" || length(data_iter) == 1)) {
+      duration_line_id = duration_line_id[, c("line_id", "time_elapsed")]
+
+      if(!missing(normalize) && (!norm_group || normalize != "range" || n_calculations == 1)) {
 
         if (normalize != "range" && norm_group && verbose) {
           message(paste0('Normalization method is "', normalize, '" - \'norm_group\' = TRUE is applicable only for normalization method "range". \'Norm_group\' argument ignored, each group is normalized seperately'))
@@ -272,8 +292,7 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
       }
       #might use tidyterra for optimisation
 
-      line_id_df = as.data.frame(traj_buff)
-      buff_df = dplyr::left_join(line_id_df, duration_line_id, by = 'line_id')
+      buff_df = terra::merge(traj_buff, duration_line_id, by = 'line_id', all.x = TRUE)
 
       traj_buff$act = buff_df$time_elapsed
 
@@ -285,58 +304,78 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
 
 
 
-    buff_svc = c(buff_svc, traj_buff)
+    #buff_svc = c(buff_svc, traj_buff)
 
-  }
-  #remove empty vector
-  buff_svc = buff_svc[-1]
+    # if (n_calculations != 1 && verbose) {  # Update every 5 calculations
+    #   buff_end_time = Sys.time()
+    #   buff_time = difftime(buff_end_time, buff_start_time, units = "s") |> as.numeric() |> round(1)
+    #   cat(sprintf("\rProcessing: %d/%d buffers [%0.1f s]", buff_index, n_calculations, buff_time),'
+    #       ')
+    #   flush.console()  # Ensure it prints in real-time
+    # }
+    # buff_index = buff_index + 1
 
-  if(!missing(normalize) && !missing(time_data) && norm_group && length(data_iter) > 1 &&
-     normalize == "range"){
+  # }
+  # #remove empty vector
+  # buff_svc = buff_svc[-1]
 
-    if (length(data_iter) > 1){
+      if(!missing(normalize) && !missing(time_data) && norm_group && n_calculations > 1 &&
+         normalize == "range"){
 
-      max_buff = terra::vect(buff_svc)$act |> max(na.rm = TRUE)
+        if(!exists("max_buff", inherits = FALSE)){
+          data_all = as.data.frame(data_proj)
 
-      for (i in 1:length(buff_svc)){
-        buff_svc[i]$act = buff_svc[i]$act / max_buff
-      }
-    }
-  }
+          data_all = data_all[order(data_all[[enq_group_split]], data_all[[time_cname]]),]
 
-  if (inherits(buff_svc, "SpatVector")){
-    buff_svc = c(buff_svc)
-  }
+          lead_df = c(data_all[[time_cname]][-1], NA)
 
-  for (buff_n in  1:length(data_iter)) {
-    current_buff = buff_svc[buff_n] # cmd fix
+          lead_df[which(c(data_all[[enq_group_split]][-1], NA) != data_all[[enq_group_split]])] = NA
+          #max(as.numeric(difftime(, df[["n"]], units = "s")), na.rm = TRUE)
+
+
+          max_buff = max(as.numeric(difftime(lead_df, data_all[[time_cname]], units = time_unit)), na.rm = TRUE)
+        }
+
+        traj_buff$act = traj_buff$act / max_buff
+
+          #max_buff = terra::vect(buff_svc)$act |> max(na.rm = TRUE)
+
+          # for (i in 1:length(buff_svc)){
+          #   buff_svc[i]$act = buff_svc[i]$act / max_buff
+          # }
+        }
+
+#
+#   if (inherits(buff_svc, "SpatVector")){ ##???
+#     buff_svc = c(buff_svc)
+#   }
+#
+#   index = 1
+#
+#   for (buff_n in  1:n_calculations) {
+
+    # if (n_calculations != 1 && verbose){
+    #   start_time = Sys.time()
+    # }
+
+
+    current_buff = traj_buff # cmd fix
 
     if (!missing(env_data)){ #all of computation necessary only when calculating env_data
       # extract values and weights (area overlap) from grid for each cell of buffer
       exac_extr = exactextractr::exact_extract(grid_rast, sf::st_as_sf(current_buff), progress = FALSE)
 
-      traj_extract = Map(function(x, id) {x$line_id = id
-      return(x)}, x = exac_extr, seq_along(exac_extr)) |> dplyr::bind_rows() |>
-        dplyr::as_tibble() |>
-        dplyr::relocate(3) |>
-        dplyr::rename(e = 2)
+      traj_extract =  lapply(seq_along(exac_extr), function(i) {
+        df <- exac_extr[[i]]
+        df$line_id <- i
+        return(df)
+      }) |> data.table::rbindlist()
 
 
       # calculate summarised exposure for each buffer
-      traj_extract_line_id = traj_extract |>
-        dplyr::group_by(.data$line_id) |>
-        dplyr::summarise(
-          #Jan 9, 2024 use R's built-in weighted.mean() function
-          #instead of calculating weighted average manually
-          end_weights=stats::weighted.mean(
-            x=.data$e,
-            w=.data$coverage_fraction,
-            na.rm=TRUE),
-          #These weights are based on the areal overlap, not time
-          sum_weights = sum(.data$coverage_fraction,na.rm=TRUE),
-          n_pixel = dplyr::n() # number of observations corresponds to number of pixels per line segment
-        ) |>
-        dplyr::ungroup()
+      traj_extract_line_id = traj_extract[, list(end_weights=stats::weighted.mean(value, coverage_fraction, na.rm=TRUE),
+                                                 sum_weights = sum(coverage_fraction, na.rm=TRUE), n_pixel = .N), by = "line_id"]
+
 
       # join weights with spatial buffer
 
@@ -364,9 +403,26 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
         names(rast_segment) = "activity_space"
       }
     }
-    output = suppressWarnings(append(output, rast_segment))
+
+    output[[index]] = rast_segment
+
+    gc()
+
+    if (n_calculations != 1 && verbose) {  # Update every 5 calculations
+      end_time = Sys.time()
+      time = difftime(end_time, start_time, units = "s") |> as.numeric() |> round(1)
+      cat(sprintf("\rProcessing: %d/%d calculations [%0.1f s]", index, n_calculations, time),'
+          ')
+      flush.console()  # Ensure it prints in real-time
+    }
+    index = index + 1
+
+    #output = suppressWarnings(append(output, rast_segment))
 
   }
+
+  output = terra::rast(output)
+
 
   if (!missing(filepath)) { # save raster
     terra::writeRaster(output, filename = filepath)
@@ -379,3 +435,6 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
   return(output)
 
 }
+
+.datatable.aware <- TRUE
+

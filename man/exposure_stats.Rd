@@ -11,7 +11,7 @@ exposure_stats(..., stats, row_names = NULL, verbose = TRUE)
 
 \item{stats}{Character. Single or vector of statistics to be calculated. See \code{\link[terra:global]{terra::global()}} for more details. Added "range", "count" and "area".}
 
-\item{row_names}{Character. Single or vector the same length as number of ... arguments specifying row names of output data.frame. If NULL row names are ... arguments, values without argument specified will be numbered row-wise.}
+\item{row_names}{Character. Single or vector the same length as number of ... arguments specifying row names of output data.frame. If NULL row names are ... arguments, values without argument specified will be numbered row-wise. If ... SpatRasters have more than one layer row_names vector should be a length of sum of layers of all SpatRasters.}
 
 \item{verbose}{Boolean. If TRUE amount of output is reduced.}
 }
@@ -28,7 +28,7 @@ ndvi_data = terra::rast(system.file("extdata/landsat_ndvi.tif",
                                      package = "twiGPS"))
 
 exposure = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"),
-                       cellsize = 50, input_crs = "EPSG:4326")
+                       cellsize = 50, input_crs = "EPSG:4326", output_crs = "EPSG:32611")
 # no names
 exposure_stats(ndvi_data, exposure, stats = statistics)
 

@@ -12,7 +12,7 @@ start_processing = function(data, coords, NA_val, env_data, grid_extent,
     if (!missing(NA_val)) {
       if (is.numeric(NA_val)){
         n_row = nrow(data)
-        data = dplyr::filter(data, .data[[coords]] != NA_val)
+        data = subset(data, data[coords] != NA_val)
         data[data[coords[1]] != NA_val & data[coords[2]] != NA_val,] # to improve
         if (verbose) {
           number_row = n_row - nrow(data)
@@ -36,7 +36,7 @@ start_processing = function(data, coords, NA_val, env_data, grid_extent,
     }
     data_points = terra::vect(x = data, geom = coords, crs = input_crs)
 
-  } else if (inherits(data, "sf") && all(sf::st_geometry_type(data) == "POINT")){
+  } else if (inherits(data, "sf") && any(attributes(sf::st_geometry(data))$class == "sfc_POINT")){
     data_points = terra::vect(data)
 
     if (!missing(input_crs) && verbose){
@@ -237,12 +237,12 @@ normalization = function(data, method, range = c(0, 1)){
            scale = data)
   } else if (inherits(data, "numeric") && length(unique(data[!is.na(data)])) == 1){
     switch(method,
-           center = terra::scale(data, center = TRUE, scale = FALSE),
+           center = scale(data, center = TRUE, scale = FALSE)[,1],
            # range = (data - terra::minmax(data, na.rm = TRUE)[1,]) /
            #   diff(terra::minmax(data, na.rm = TRUE)) * diff(range) + range[1L],
            #without range arg
            range = data / max(data, na.rm = TRUE),
-           standardize = terra::scale(data, center = TRUE, scale = FALSE),
+           standardize = scale(data, center = TRUE, scale = FALSE)[,1],
            scale = data)
   } else if (inherits(data, "numeric") && length(unique(data[!is.na(data)])) != 1) {
     switch(method,
@@ -250,9 +250,9 @@ normalization = function(data, method, range = c(0, 1)){
            #   diff(terra::minmax(data, na.rm = TRUE)) * diff(range) + range[1L],
            #without range arg
            range = data / max(data, na.rm = TRUE),
-           standardize = scale(data, center = TRUE, scale = TRUE),
-           center = scale(data, center = TRUE, scale = FALSE),
-           scale = scale(data, center = FALSE, scale = stats::sd(data, na.rm = TRUE))
+           standardize = scale(data, center = TRUE, scale = TRUE)[,1],
+           center = scale(data, center = TRUE, scale = FALSE)[,1],
+           scale = scale(data, center = FALSE, scale = stats::sd(data, na.rm = TRUE))[,1]
     )
   } else {
     switch(method,
@@ -275,150 +275,136 @@ trajectories_fun = function(data){
   t_name = c(names(data))[grepl('time', c(names(data)))]
   lst_name = paste(t_name[which.max(nchar(t_name))], "_1", sep = "")
 
-  trajectories_out = data |>
-    sf::st_as_sf() |> # change to sf object to change points to linestring later
-    #filter to the study id defined by the argument
-    #define start and end points of line
-    dplyr::mutate(
-      line_id = dplyr::row_number(),#an id for each "line segment"
-      x_start= sf::st_coordinates(.data$geometry)[,1],
-      y_start= sf::st_coordinates(.data$geometry)[,2],
-      x_end = dplyr::lead(.data$x_start),
-      y_end = dplyr::lead(.data$y_start)
-    ) |>
-    dplyr::ungroup() |>
-    sf::st_set_geometry(NULL) |>
-    #exclude the last observation, which has no "lead", and will be missing.
-    dplyr::filter(is.na(.data$x_end)==FALSE) |>
-    # Make the data long form so that each point has two observations
-    tidyr::pivot_longer(
-      # select variables to pivot longer.
-      cols = c(.data$x_start, .data$y_start, .data$x_end, .data$y_end),
-      #value goes to "x/y", and time goes to "_start/end"
-      names_to = c(".value", lst_name),
-      names_repair = "unique",
-      names_sep = "_"#the separator for the column name
-    ) |>
-    # create sf object once again
-    sf::st_as_sf(coords = c("x", "y"), crs= sf::st_crs(data)) |>
-    dplyr::group_by(.data$line_id) |>
-    #see Edzer's answer here:https://github.com/r-spatial/sf/issues/851
-    #do_union=FALSE is needed.
-    dplyr::summarize(do_union = FALSE) |>
-    sf::st_cast("LINESTRING") |> # cast linestring type
-    sf::st_as_sf() |>
-    dplyr::ungroup()
 
-  return(trajectories_out)
+  geo_df = data |> as.data.frame(geom = "XY")
+
+  geo_df$line_id = 1:nrow(geo_df)
+
+  names(geo_df)[which(names(geo_df) %in% c("x", "y"))] = c("x_start", "y_start")
+
+  geo_df$x_end = c(geo_df$x_start[-1], NA)
+  geo_df$y_end = c(geo_df$y_start[-1], NA)
+
+  geo_df = geo_df[!is.na(geo_df$x_end),]
+
+  pivot_l = reshape(geo_df,
+                    direction = "long",
+                    varying = list(c("x_start", "x_end"), c("y_start", "y_end")),
+                    v.names = c("x", "y"),
+                    timevar = lst_name,
+                    times = c("start", "end"),
+                    idvar = "line_id"
+  )
+  ord = pivot_l[order(-pivot_l$line_id, pivot_l[[lst_name]], decreasing = TRUE),]
+
+  row.names(ord) = NULL
+  m = as.matrix(ord[, c("line_id", "x", "y")], ncol = 3)
+
+  v = terra::vect(m, "lines", atts = data.frame(line_id = geo_df[, "line_id"]))
+  return(v)
 }
 
-spat_kde = function(x, ref, bw){
+spat_kde = function(x, ref, bw, calc){
 
-  ref_coords = terra::crds(ref)
-  # coords of each ref cell center
+
+  if (calc > 1){
+    ref_crop = terra::crop(ref, terra::ext(x) + bw + terra::res(ref)[1], ext = TRUE) # do poprawy
+    ref_coords =  terra::crds(ref_crop)
+  } else {
+    ref_coords = terra::crds(ref)
+  }
+    # coords of each ref cell center
   gx = ref_coords[,1] |> unique()
   gy = ref_coords[,2] |> unique()
 
   # distance from each x/y ref cell center to each x/y x points (squared)
 
   kde_val = kde(x, gx, gy, bw)
+  gc()
 
-  output_list = list(x = gx, y = gy, z = kde_val)
+  if (calc > 1){
+    terra::values(ref_crop) = as.vector(kde_val)
+    ref_final = terra::crop(ref_crop, ref, extend = TRUE)
+
+    return(terra::subst(ref_final, from = NA, to = 0))
+  } else {
+    terra::values(ref) = as.vector(kde_val)
+    return(ref)
+  }
+  #output_list = list(x = gx, y = gy, z = kde_val)
 
   # create df of x/y coords and val
-  pts = data.frame(expand.grid(x = output_list$x, y = output_list$y),
-                   z = as.vector(array(output_list$z,  length(output_list$z))))
+  # pts = data.frame(expand.grid(x = output_list$x, y = output_list$y),
+  #                  z = as.vector(array(output_list$z,  length(output_list$z))))
   # create points SpatVector
-  pts = terra::vect(pts, geom = c("x", "y"))
+  #pts = terra::vect(pts, geom = c("x", "y"))
   # rasterize to ref
-  return(terra::rasterize(pts, ref, field = "z"))
+  #return(terra::rasterize(pts, ref, field = "z"))
 }
 
 kde = function(points, ref_uq_x, ref_uq_y, bw) {
 
   points_coords = terra::crds(points)
 
-  ax <- outer(ref_uq_x, points_coords[, 1], "-" ) ^ 2
-  ay <- outer(ref_uq_y, points_coords[, 2], "-" ) ^ 2
+  ax <- outer_int(ref_uq_x, points_coords[, 1], "-") ^ 2
+  ay <- outer_int(ref_uq_y, points_coords[, 2], "-") ^ 2
 
   # points within quadratic search radius
   ax_T = ax <= bw ^ 2
   ay_T = ay <= bw ^ 2
 
   # every x row index
-  positions = matrix(1:nrow(ax), ncol = 1)
+  positions = c(1:nrow(ax))
 
   # calculate KDE for each column seperately
 
-  density_mx = apply(positions,  1, function(xcol) {
-
-    # which point's x coord within possible search radius
-    cols_T = which(ax_T[xcol,])
-
-    # matrix cell coordinates of points within quadratic search radius
-    rows_T = which(ay_T[,cols_T], arr.ind = TRUE)
-
-    if (length(cols_T) <= 1){ # if only one or zero points within quadratic search radius
-      suppressWarnings({rows_T = rows_T |> array(dim = c(length(rows_T), 1)) |> cbind(1)})
-      colnames(rows_T) = c("row", "col")
-    }
-    # calculate distance within quadratic search radius
-    df_row = rows_T |> as.data.frame() |>
-      dplyr::mutate(sum_val = ay[cbind(row, cols_T[col])] + ax[cbind(xcol, cols_T[col])]) |>
-      dplyr::filter(.data$sum_val <= bw ^ 2) |> # filter points within search radius based on real distance
-      dplyr::mutate(sum_val = (.data$sum_val / bw ^ 2 * (-1) + 1) ^ 2) # calculate impact of each point on cells
-
-    #create empty matrix
-    empty_mx = matrix(NA, nrow = nrow(ay), ncol = length(cols_T))
-    # insert values based on cell coordinates
-    empty_mx[cbind(df_row$row, df_row$col)] = df_row$sum_val
-
-    # sum impact of every point to calculate KDE
-    mx_sum = rowSums(empty_mx, na.rm = TRUE)
-
-    return(mx_sum)})
+  density_mx = vapply(positions, FUN = col_calc, FUN.VALUE = numeric(nrow(ay)),
+                      x = ax, y = ay, x_T = ax_T, y_T = ay_T, bw = bw)
 
   # transpose matrix and final KDE calculations
   out = t(density_mx) * (3/pi) / bw ^ 2
+
   return(out)
 }
 
-kde_points = function(vect_x, vect_y, bw){
+kde_points = function(x, v_x, v_y, bw){
+  ax_p = (v_x - x[1]) ^ 2
+  ay_p = (v_y - x[2]) ^ 2
 
-  # apply for each cell coords seperately
-  kde_p = mapply(function(x, y) {
-    #distance betweeen each point
-    ax_p = (vect_x - x) ^ 2
-    ay_p = (vect_y - y) ^ 2
+  # boolean if dist within search radius
+  ax_p_T = ax_p <= bw ^ 2
+  ay_p_T = ay_p <= bw ^ 2
 
-    # boolean if dist within search radius
-    ax_p_T = ax_p <= bw ^ 2
-    ay_p_T = ay_p <= bw ^ 2
+  # choose dist^ 2 within search radius
+  x_T = .Internal(which(ax_p_T))
+  y_T = .Internal(which(ay_p_T))
 
-    # choose dist^ 2 within search radius
-    x_T = which(ax_p_T)
-    y_T = which(ay_p_T)
+  # index of coords of which both x and y within search radius
 
-    # index of coords of which both x and y within search radius
-    xy_T = intersect(x_T, y_T)
+  x_T_uq =  unique(x_T)
+  xy_T = x_T_uq[.Internal(match(x_T_uq, unique(y_T), 0L, NULL)) > 0L]
 
-    # calculate dist ^ 2 and choose thoso within search radius
-    xy_val = ax_p[xy_T] + ay_p[xy_T]
-    xy_val = xy_val[xy_val < bw ^ 2]
+  # calculate dist ^ 2 and choose thoso within search radius
+  xy_val = ax_p[xy_T] + ay_p[xy_T]
+  xy_val = xy_val[xy_val < bw ^ 2]
 
-    #
-    xy_calc = (xy_val / bw ^ 2 * (-1) + 1) ^ 2
+  #
+  xy_calc = (xy_val / bw ^ 2 * (-1) + 1) ^ 2
 
-    xy_out = sum(xy_calc)
-
-
-  }, x = vect_x, y =  vect_y) * (3/pi) / bw ^ 2
-
-  return(kde_p)
+  xy_out = sum(xy_calc)
 }
 
-spat_dr = function(x, ref, bw) {
-  ref_coords = terra::crds(ref)
+
+spat_dr = function(x, ref, bw, calc) {
+
+  if (calc > 1){
+    ref_crop = terra::crop(ref, terra::ext(x) + bw + terra::res(ref)[1], ext = TRUE) # do poprawy
+    ref_coords =  terra::crds(ref_crop)
+  } else {
+    ref_coords = terra::crds(ref)
+  }
+
+  #ref_coords = terra::crds(ref)
   # coords of each ref cell center
   gx = ref_coords[,1] |> unique()
   gy = ref_coords[,2] |> unique()
@@ -428,17 +414,86 @@ spat_dr = function(x, ref, bw) {
   x_coords = terra::crds(x)
 
   kde_val = kde(x, gx, gy, bw)
-  dr_val = kde_points(x_coords[,1], x_coords[,2], bw)
+
+  dr_val = apply(x_coords, 1, kde_points, v_x = x_coords[,1], v_y = x_coords[,2], bw = bw) * (3/pi) / bw ^ 2
+
+  gc()
+
   # DR EVAL
   dr_calc = stats::ecdf(dr_val)(as.vector(kde_val))
 
-  output_list = list(x = gx, y = gy, z = dr_calc)
+  if (calc > 1){
+    terra::values(ref_crop) = as.vector(dr_calc)
+    ref_final = terra::crop(ref_crop, ref, extend = TRUE)
 
-  # create df of x/y coords and val
-  pts = data.frame(expand.grid(x = output_list$x, y = output_list$y),
-                   z = output_list$z)
-  # create points SpatVector
-  pts = terra::vect(pts, geom = c("x", "y"))
-  # rasterize to ref
-  return(terra::rasterize(pts, ref, field = "z"))
+    return(terra::subst(ref_final, from = NA, to = 0))
+  } else {
+    terra::values(ref) = as.vector(dr_calc)
+    return(ref)
+  }
+  # output_list = list(x = gx, y = gy, z = dr_calc)
+  #
+  # # create df of x/y coords and val
+  # pts = data.frame(expand.grid(x = output_list$x, y = output_list$y),
+  #                  z = output_list$z)
+  # # create points SpatVector
+  # pts = terra::vect(pts, geom = c("x", "y"))
+  # # rasterize to ref
+  # return(terra::rasterize(pts, ref, field = "z"))
 }
+
+
+
+outer_int = function(x, y, FUN, ...){
+  FUN = match.fun(FUN)
+
+  dX <- length(x)
+  dY <- length(y)
+
+  Y <- rep(y, rep.int(dX, dY))
+  X <- rep.int(x, times = ceiling(length(Y)/dX))
+
+  robj =  FUN(X, Y, ...)
+  dim(robj) = c(dX, dY)
+
+  return(robj)
+}
+
+col_calc = function(xc, x, y, x_T, y_T, bw){
+  # which point's x coord within possible search radius
+  cols_T = .Internal(which(x_T[xc,]))
+
+  sub_cols_T = y_T[,cols_T]
+
+  # matrix cell coordinates of points within quadratic search radius
+  if (length(sub_cols_T) == nrow(y_T)){ # if only one point within quadratic search radius
+    rows_T = cbind(.Internal(which(sub_cols_T)), 1, NA)
+  } else {
+    rows_T = .Internal(which(sub_cols_T))
+    .dim = dim(sub_cols_T)
+    m <- length(rows_T)
+    wh1 <- rows_T - 1L
+    rows_T <- 1L + wh1 %% .dim[1L]
+    rows_T <- matrix(rows_T, nrow = m, ncol = 3, dimnames = NULL) # 2 -> rank
+    nextd1 <- wh1 %/% .dim[1L]
+    rows_T[,2] <- 1L + nextd1 %% .dim[2]
+  }
+  colnames(rows_T) = c("row", "col", "sum")
+
+  rows_T[, "sum"] = y[cbind(rows_T[, "row"], cols_T[rows_T[, "col"]])] + x[cbind(xc, cols_T[rows_T[, "col"]])]
+  rows_T = rows_T[rows_T[,"sum"] <= bw ^ 2, , drop = FALSE] # filter points within search radius based on real distance
+  rows_T[, "sum"] = (rows_T[, "sum"] / bw ^ 2 * (-1) + 1) ^ 2 # calculate impact of each point on cells
+
+  #create empty matrix
+  empty_mx = matrix(nrow = nrow(y), ncol = length(cols_T))
+
+  # insert values based on cell coordinates
+  empty_mx[rows_T[, c("row", "col")]] = rows_T[, "sum"]
+
+  # sum impact of every point to calculate KDE
+  mx_sum = .rowSums(empty_mx, nrow(empty_mx), ncol(empty_mx), na.rm = TRUE)
+
+  return(mx_sum)
+
+}
+

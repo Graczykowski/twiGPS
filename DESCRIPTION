@@ -1,6 +1,6 @@
 Package: twiGPS
 Title: Time-Weighted Spatial Averaging Methods with GPS
-Version: 0.1.5
+Version: 0.1.6
 Authors@R: 
     c(person("Igor", "Graczykowski", email = "igor.graczykowski@gmail.com", role = c("aut", "cre")),
     person("Jakub", "Nowosad", role = "aut",
@@ -24,7 +24,7 @@ RoxygenNote: 7.3.2
 Imports:
   terra (>= 1.7.81),
   sf,
-  dplyr,
+  data.table,
   geosphere,
   tidyr,
   stats,
