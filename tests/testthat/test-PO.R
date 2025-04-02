@@ -1,4 +1,4 @@
-
+source("testthat-helper.R")
 testthat::test_that("exposure_PO normalize range", {
   PO_test = exposure_PO(data = geolife_sandiego, coords = c("lon", "lat"), cellsize = 50, normalize = "range",
                    input_crs = "EPSG:4326", output_crs = "EPSG:32611")

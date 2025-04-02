@@ -247,9 +247,7 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
 
   for (data_i in data_iter){
 
-    # if (n_calculations != 1 && verbose){
-    #   buff_start_time = Sys.time()
-    # }
+
 
     if (n_calculations != 1 && verbose){
       start_time = Sys.time()
@@ -265,8 +263,8 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
     # create buffers over line segments
     traj_buff = terra::buffer(trajectories, bandwidth)
 
-    traj_buff$act = 1
 
+    traj_buff$act = 1
 
     if (!missing(time_data)){
 
@@ -285,7 +283,6 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
           message(paste0('Normalization method is "', normalize, '" - \'norm_group\' = TRUE is applicable only for normalization method "range". \'Norm_group\' argument ignored, each group is normalized seperately'))
         }
 
-
         duration_line_id$time_elapsed = normalization(duration_line_id$time_elapsed,
                                                           method = normalize)
 
@@ -302,22 +299,6 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
       traj_buff$name = unique(data_i[[enq_group_split]])
     }
 
-
-
-    #buff_svc = c(buff_svc, traj_buff)
-
-    # if (n_calculations != 1 && verbose) {  # Update every 5 calculations
-    #   buff_end_time = Sys.time()
-    #   buff_time = difftime(buff_end_time, buff_start_time, units = "s") |> as.numeric() |> round(1)
-    #   cat(sprintf("\rProcessing: %d/%d buffers [%0.1f s]", buff_index, n_calculations, buff_time),'
-    #       ')
-    #   flush.console()  # Ensure it prints in real-time
-    # }
-    # buff_index = buff_index + 1
-
-  # }
-  # #remove empty vector
-  # buff_svc = buff_svc[-1]
 
       if(!missing(normalize) && !missing(time_data) && norm_group && n_calculations > 1 &&
          normalize == "range"){
@@ -337,26 +318,7 @@ exposure_LS = function(data, coords, bandwidth, cellsize, time_data, env_data,
         }
 
         traj_buff$act = traj_buff$act / max_buff
-
-          #max_buff = terra::vect(buff_svc)$act |> max(na.rm = TRUE)
-
-          # for (i in 1:length(buff_svc)){
-          #   buff_svc[i]$act = buff_svc[i]$act / max_buff
-          # }
         }
-
-#
-#   if (inherits(buff_svc, "SpatVector")){ ##???
-#     buff_svc = c(buff_svc)
-#   }
-#
-#   index = 1
-#
-#   for (buff_n in  1:n_calculations) {
-
-    # if (n_calculations != 1 && verbose){
-    #   start_time = Sys.time()
-    # }
 
 
     current_buff = traj_buff # cmd fix
